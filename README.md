@@ -82,7 +82,7 @@ pip install -r requirements.txt
 
 The SpeciesNet AI model is a ~200MB file that must be downloaded manually.
 
-1. Go to Kaggle: [SpeciesNet v4.0.2a PyTorch Model](https://www.google.com/search?q=https://www.kaggle.com/models/google/speciesnet/pyTorch/v4.0.2a)
+1. Go to Kaggle: [SpeciesNet v4.0.2a PyTorch Model](https://www.kaggle.com/api/v1/models/google/speciesnet/pyTorch/v4.0.2a/1/download)
 2. Download the `archive.tar.gz` file and extract it.
 3. Open the extracted folder. **Move all of its contents** directly into your project's `speciesnet_model/` folder.
 * ⚠️ **Rule:** The file `info.json` MUST be located exactly at `WildlifeProject\speciesnet_model\info.json`. Do not leave it nested inside an "archive" subfolder.
