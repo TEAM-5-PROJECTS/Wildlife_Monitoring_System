@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SentryNet | Field Analysis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ========== GLOBAL & NAVIGATION ========== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Space Grotesk', sans-serif; 
+            background: #f8f6f1; 
+            min-height: 100vh; 
+            overflow-x: hidden; 
+        }
+
+        /* Navigation (Same as others) */
+        .mode-selector {
+            position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
+            z-index: 10000; display: flex; align-items: center; gap: 15px;
+            padding-bottom: 10px; font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.9rem; font-weight: 700; letter-spacing: 0.15em;
+            text-transform: uppercase; mix-blend-mode: multiply;
+        }
+        .mode-link {
+            background: none; border: none; padding: 0; margin: 0; cursor: pointer;
+            font-family: inherit; font-size: inherit; font-weight: inherit;
+            letter-spacing: inherit; text-transform: inherit; outline: none;
+            color: #b0b0b0; transition: all 0.4s ease; position: relative;
+            text-decoration: none;
+        }
+        .mode-link:hover { color: #666; }
+        .mode-link.active { color: #1a1a1a; transform: scale(1.05); }
+        .mode-link.active::after {
+            content: ''; position: absolute; bottom: -6px; left: 50%;
+            transform: translateX(-50%); width: 4px; height: 4px;
+            background: #e53935; border-radius: 50%;
+        }
+        .divider { color: #ddd; font-weight: 400; user-select: none; }
+
+        /* ========== DASHBOARD GRID LAYOUT (Matching Sensors.html) ========== */
+        #view-field {
+            font-family: 'Space Grotesk', sans-serif;
+            background: #f8f6f1;
+            color: #1a1a1a;
+            min-height: 100vh;
+            width: 100vw;
+            padding: 80px 1.5vw 1.5vh 1.5vw;
+            display: flex;
+            justify-content: center;
+        }
+
+        .dashboard-wrapper {
+            width: 100%;
+            max-width: 1400px;
+            display: grid;
+            grid-template-columns: 2.2fr 1fr; /* Main Stage vs Side Feed */
+            gap: 1.5rem;
+            opacity: 0;
+            animation: fadeIn 0.8s ease-out forwards;
+            height: 85vh; /* Fixed height for dashboard feel */
+        }
+        @keyframes fadeIn { to { opacity: 1; } }
+
+        /* --- LEFT PANEL: VIDEO STAGE --- */
+        .stage-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            height: 100%;
+            overflow-y: auto; /* Allow scrolling if results get long */
+            padding-right: 10px; /* Space for scrollbar */
+        }
+
+        /* Video Card */
+        .video-card-container {
+            background: white;
+            border-radius: 24px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.05);
+            width: 100%;
+        }
+
+        .video-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .video-title { font-size: 1.4rem; font-weight: 700; color: #1a1a1a; }
+        .video-meta { font-size: 0.9rem; color: #888; }
+
+        .video-frame {
+            width: 100%;
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        video { width: 100%; height: 100%; display: block; object-fit: contain; }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+            text-align: center;
+            color: #aaa;
+            border: 2px dashed #eee;
+            border-radius: 16px;
+        }
+        .empty-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
+
+        /* --- RIGHT PANEL: HISTORY FEED --- */
+        .feed-panel {
+            background: white;
+            border-radius: 24px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.05);
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .feed-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .feed-title { font-size: 1.1rem; font-weight: 700; color: #1a1a1a; }
+        
+        .refresh-btn {
+            background: #f0f0f0;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+        }
+        .refresh-btn:hover { background: #e0e0e0; transform: rotate(180deg); }
+
+        .feed-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            padding-right: 5px;
+        }
+
+        /* Feed Item Card */
+        .feed-item {
+            padding: 1rem;
+            background: #fcfcfc;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .feed-item:hover { 
+            background: #fff; 
+            border-color: #1a1a1a; 
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .feed-item.active {
+            background: #1a1a1a;
+            border-color: #1a1a1a;
+            color: #fff;
+        }
+        
+        .item-top { display: flex; justify-content: space-between; margin-bottom: 0.4rem; }
+        .item-time { font-size: 0.8rem; color: #888; font-weight: 600; }
+        .feed-item.active .item-time { color: rgba(255,255,255,0.6); }
+        
+        .item-id { font-weight: 700; font-size: 1rem; }
+        
+        .item-tags { display: flex; gap: 6px; margin-top: 6px; }
+        .tag { 
+            font-size: 0.7rem; 
+            padding: 3px 8px; 
+            border-radius: 20px; 
+            background: #eee; 
+            color: #666; 
+            font-weight: 600; 
+        }
+        .feed-item.active .tag { background: #333; color: #fff; }
+
+        /* --- RESULTS GRID --- */
+        .results-area { margin-top: 2rem; }
+        .species-group { margin-bottom: 2rem; animation: slideUp 0.5s ease; }
+        .species-label { font-size: 1.2rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 10px; }
+        .count-badge { background: #eee; padding: 2px 10px; border-radius: 12px; font-size: 0.8rem; color: #666; }
+        
+        .thumbs-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 1rem;
+        }
+        
+        .thumb-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            cursor: zoom-in;
+            transition: transform 0.2s;
+        }
+        .thumb-card:hover { transform: translateY(-4px); }
+        .thumb-img { width: 100%; height: 100px; object-fit: cover; display: block; }
+        .thumb-meta { padding: 8px; text-align: center; }
+        .seek-btn { 
+            background: transparent; border: 1px solid #ddd; 
+            border-radius: 20px; padding: 4px 10px; 
+            font-size: 0.75rem; cursor: pointer; font-family: inherit; font-weight: 700;
+        }
+        .seek-btn:hover { border-color: #1a1a1a; background: #1a1a1a; color: white; }
+
+        /* Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(248, 246, 241, 0.95); z-index: 2000; justify-content: center; align-items: center; }
+        .modal.active { display: flex; animation: fadeIn 0.3s; }
+        .modal-img { max-width: 90%; max-height: 85vh; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+        .close-modal { position: absolute; top: 30px; right: 30px; width: 40px; height: 40px; background: #1a1a1a; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.5rem; }
+/* Confidence Score Badge */
+.conf-badge {
+    display: block;
+    font-size: 0.75rem;
+    margin-top: 4px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+/* Color coding based on confidence level */
+.conf-high { color: #2e7d32; background: #e8f5e9; } /* Green */
+.conf-med  { color: #f57f17; background: #fff3e0; } /* Orange */
+.conf-low  { color: #c62828; background: #ffebee; } /* Red */
+    </style>
+</head>
+<body>
+
+    <div class="mode-selector">
+        <a href="{{ url_for('index') }}" class="mode-link">Research</a>
+        <span class="divider">//</span>
+        <a href="{{ url_for('sen') }}" class="mode-link">Sensor Status</a>
+        <span class="divider">//</span>
+        <a href="{{ url_for('amb82_analysis') }}" class="mode-link active">Field</a>
+    </div>
+
+    <div id="view-field">
+        <div class="dashboard-wrapper">
+            
+            <div class="stage-panel">
+                <div class="video-card-container">
+                    
+                    <div id="welcomeState" class="empty-state">
+                        <div class="empty-icon">🔭</div>
+                        <h2>Select a Capture</h2>
+                        <p>Select a recording from the feed to begin analysis.</p>
+                    </div>
+
+                    <div id="videoContent" style="display: none;">
+                        <div class="video-header">
+                            <div>
+                                <h2 class="video-title" id="displayTitle">Capture #001</h2>
+                                <p class="video-meta" id="displayMeta">--</p>
+                            </div>
+                        </div>
+
+                        <div class="video-frame">
+                            <video id="mainPlayer" controls playsinline>
+                                <p>Video not supported</p>
+                            </video>
+                        </div>
+                        
+                        <div class="results-area" id="resultsGrid">
+                            </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="feed-panel">
+                <div class="feed-header">
+                    <span class="feed-title">Incoming Feeds</span>
+                    <button class="refresh-btn" onclick="loadHistory()" title="Refresh">↻</button>
+                </div>
+                
+                <div class="feed-list" id="historyList">
+                    <div style="text-align:center; color:#aaa; padding:2rem;">Loading...</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="imageModal" class="modal" onclick="closeModal()">
+        <div class="close-modal">×</div>
+        <img class="modal-img" id="modalImg">
+    </div>
+
+    <script>
+        const API_HISTORY = '/api/history';
+        const VIDEO_BASE_PATH = '/uploads/videos/'; 
+        let currentHistoryData = [];
+
+        async function loadHistory() {
+            const listContainer = document.getElementById('historyList');
+            const btn = document.querySelector('.refresh-btn');
+            
+            // Rotate animation
+            btn.style.transform = "rotate(360deg)";
+            setTimeout(() => btn.style.transform = "none", 500);
+
+            try {
+                const response = await fetch(API_HISTORY);
+                const data = await response.json();
+                currentHistoryData = data;
+
+                if (data.length === 0) {
+                    listContainer.innerHTML = '<div style="text-align:center; color:#aaa; padding:1rem;">No recordings found.</div>';
+                    return;
+                }
+
+                listContainer.innerHTML = '';
+                
+                data.forEach((item, index) => {
+                    // Calculate stats
+                    const speciesSet = new Set(item.detections.map(d => d.species));
+                    const uniqueCount = speciesSet.size;
+                    
+                    // Date Format
+                    const dateObj = new Date(item.time);
+                    const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    const dateStr = dateObj.toLocaleDateString();
+
+                    const el = document.createElement('div');
+                    el.className = 'feed-item';
+                    el.onclick = () => selectVideo(index);
+                    el.innerHTML = `
+                        <div class="item-top">
+                            <span class="item-id">Capture #${item.id}</span>
+                            <span class="item-time">${timeStr}</span>
+                        </div>
+                        <div style="font-size:0.8rem; color:#888; margin-bottom:4px;">${dateStr}</div>
+                        <div class="item-tags">
+                            <span class="tag">${uniqueCount} Species</span>
+                            <span class="tag">${item.detections.length} Events</span>
+                        </div>
+                    `;
+                    listContainer.appendChild(el);
+                });
+
+            } catch (e) {
+                console.error(e);
+                listContainer.innerHTML = '<div style="color:#e53935; text-align:center;">Connection Error</div>';
+            }
+        }
+
+        function selectVideo(index) {
+            const data = currentHistoryData[index];
+            if (!data) return;
+
+            // Highlight Feed Item
+            document.querySelectorAll('.feed-item').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.feed-item')[index].classList.add('active');
+
+            // Toggle Views
+            document.getElementById('welcomeState').style.display = 'none';
+            document.getElementById('videoContent').style.display = 'block';
+
+            // Update Header
+            document.getElementById('displayTitle').textContent = `Capture #${data.id}`;
+            const dateObj = new Date(data.time);
+            document.getElementById('displayMeta').textContent = `${dateObj.toDateString()} at ${dateObj.toLocaleTimeString()}`;
+
+            // Play Video
+            const player = document.getElementById('mainPlayer');
+            const cleanFilename = data.filename.replace('uploads/videos/', '');
+            player.src = `${VIDEO_BASE_PATH}${cleanFilename}`; 
+            player.load();
+
+            // Render Results
+            renderResults(data.detections);
+        }
+
+    function renderResults(detections) {
+    const container = document.getElementById('resultsGrid');
+    container.innerHTML = '';
+
+    // The backend now handles filtering. 
+    // If we receive data, we assume it is valid and ready to show.
+
+    if (!detections || detections.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:#aaa; padding:2rem;">No relevant detections found.</div>';
+        return;
+    }
+
+    // Group by Species
+    const bySpecies = {};
+    detections.forEach(d => {
+        if (!bySpecies[d.species]) bySpecies[d.species] = [];
+        bySpecies[d.species].push(d);
+    });
+    for (const [species, dets] of Object.entries(bySpecies)) {
+        dets.sort((a, b) => a.time - b.time);
+
+        const section = document.createElement('div');
+        section.className = 'species-group';
+        
+        let html = `
+            <div class="species-label">
+                ${species}
+                <span class="count-badge">${dets.length} events</span>
+            </div>
+            <div class="thumbs-row">
+        `;
+
+        dets.forEach(d => {
+            const timeLabel = formatTime(d.time);
+            const imgUrl = d.image_url ? (d.image_url.startsWith('/') ? d.image_url : '/' + d.image_url) : '';
+            
+            // Calculate Percentage
+            const rawConf = d.confidence || 0;
+            const confPercent = Math.round(rawConf * 100);
+
+            // --- DYNAMIC COLOR LOGIC ---
+            let confClass = 'conf-low'; // Default Red
+            if (rawConf > 0.85) {
+                confClass = 'conf-high'; // Green for > 85%
+            } else if (rawConf > 0.70) {
+                confClass = 'conf-med';  // Orange for 70-85%
+            }
+
+            html += `
+                <div class="thumb-card">
+                    <img src="${imgUrl}" 
+                         class="thumb-img" 
+                         onclick="openModal('${imgUrl}')" 
+                         loading="lazy"
+                         onerror="this.onerror=null; this.src='https://placehold.co/150x100?text=No+Img';">
+                    <div class="thumb-meta">
+                        <button class="seek-btn" onclick="seekVideo(${d.time})">▶ ${timeLabel}</button>
+                        
+                        <span class="conf-badge ${confClass}">
+                            ${confPercent}% Match
+                        </span>
+
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `</div>`;
+        section.innerHTML = html;
+        container.appendChild(section);
+    }
+}
+        function seekVideo(seconds) {
+            const player = document.getElementById('mainPlayer');
+            player.currentTime = seconds;
+            player.play();
+            // Scroll to video top smoothly
+            document.querySelector('.video-card-container').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function openModal(url) {
+            document.getElementById('modalImg').src = url;
+            document.getElementById('imageModal').classList.add('active');
+        }
+        function closeModal() {
+            document.getElementById('imageModal').classList.remove('active');
+        }
+
+        // Init
+        loadHistory();
+    </script>
+</body>
+</html>

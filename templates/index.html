@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeciesNet - Research</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+    /* ========== GLOBAL & NAVIGATION (Shared) ========== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { 
+    font-family: 'Space Grotesk', sans-serif; 
+    background: #f8f6f1; 
+    min-height: 100vh; 
+    overflow-x: hidden; 
+}
+
+/* Utility to override IDs if needed */
+.hidden { display: none !important; }
+
+/* Navigation */
+.mode-selector {
+    position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
+    z-index: 10000; display: flex; align-items: center; gap: 15px;
+    padding-bottom: 10px; font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.9rem; font-weight: 700; letter-spacing: 0.15em;
+    text-transform: uppercase; mix-blend-mode: multiply;
+}
+
+.mode-link {
+    background: none; border: none; padding: 0; margin: 0; cursor: pointer;
+    font-family: inherit; font-size: inherit; font-weight: inherit;
+    letter-spacing: inherit; text-transform: inherit; outline: none;
+    color: #b0b0b0; transition: all 0.4s ease; position: relative;
+    text-decoration: none; /* Django Link Fix */
+}
+
+.mode-link:hover { color: #666; }
+
+.mode-link.active {
+    color: #1a1a1a;
+    transform: scale(1.05);
+}
+
+.mode-link.active::after {
+    content: ''; position: absolute; bottom: -6px; left: 50%;
+    transform: translateX(-50%); width: 4px; height: 4px;
+    background: #e53935; border-radius: 50%;
+}
+
+.divider { color: #ddd; font-weight: 400; user-select: none; }
+
+/* ========== MAIN CONTAINER ========== */
+#view-security {
+    width: 100%;
+    min-height: 100vh;
+    position: relative;
+}
+
+/* ========== SCENES & ANIMATIONS ========== */
+.scene { 
+    min-height: 100vh; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; 
+    align-items: center; 
+    padding: 2rem; 
+    position: relative; 
+    opacity: 0; 
+    transform: translateY(20px); 
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); 
+}
+
+.scene.active { opacity: 1; transform: translateY(0); }
+
+/* Scene 1: Landing */
+#scene1 { 
+    padding-top: 4rem; 
+    justify-content: flex-start; 
+    gap: 0; 
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); 
+}
+
+.hero-header { text-align: center; margin-bottom: 2rem; flex-shrink: 0; }
+.scene1-content { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 4rem; flex: 1; min-height: 0; }
+
+/* Typography & Animations */
+.hero-title { 
+    font-size: clamp(2.2rem, 6vw, 3.8rem); 
+    font-weight: 700; 
+    letter-spacing: -0.02em; 
+    text-align: center; 
+    background: linear-gradient(135deg, #1a1a1a 0%, #4a4a4a 50%, #1a1a1a 100%); 
+    background-size: 200% 200%; 
+    -webkit-background-clip: text; 
+    -webkit-text-fill-color: transparent; 
+    background-clip: text; 
+    animation: shimmer 8s ease-in-out infinite; 
+    opacity: 0; 
+    transform: translateY(-15px); 
+    transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1); 
+    margin: 0 0 0.5rem 0; 
+    line-height: 1.2; 
+}
+.hero-title.visible { opacity: 1; transform: translateY(0); }
+
+.hero-subtitle { 
+    font-size: clamp(0.95rem, 2vw, 1.15rem); 
+    font-weight: 400; 
+    color: #888; 
+    text-transform: uppercase; 
+    letter-spacing: 0.25em; 
+    text-align: center; 
+    opacity: 0; 
+    transform: translateY(-10px); 
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s; 
+    margin: 0; 
+}
+.hero-subtitle.visible { opacity: 1; transform: translateY(0); }
+
+@keyframes shimmer { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+
+/* Sorting Demo Styles */
+.sorting-demo { display: flex; align-items: center; justify-content: center; gap: 2rem; transform: scale(0.85); transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); opacity: 0; }
+.sorting-demo.ready { opacity: 1; }
+.queue-area { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; min-width: 80px; min-height: 200px; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.queue-label { font-size: 1.05rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 0.5rem; }
+
+.queue-animal { font-size: 4rem; opacity: 0; transform: scale(0.8); transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.queue-animal.visible { opacity: 0.3; transform: scale(1); }
+.queue-animal.current { opacity: 1; transform: scale(1.2); }
+.queue-animal.sorting { animation: flyToLane 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+@keyframes flyToLane { 0% { transform: translateX(0) scale(1.2); opacity: 1; } 100% { transform: translateX(80px) scale(0.6); opacity: 0; } }
+.sort-arrow { font-size: 2rem; color: #ccc; animation: pulseArrow 1.5s ease-in-out infinite; }
+@keyframes pulseArrow { 0%, 100% { opacity: 0.4; transform: translateX(0); } 50% { opacity: 0.8; transform: translateX(8px); } }
+
+.lanes-container { display: flex; flex-direction: column; gap: 1rem; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.species-lane { display: flex; align-items: center; gap: 1rem; padding: 0.8rem 1.5rem; border: 2px solid #e0e0e0; border-radius: 12px; background: #fff; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); opacity: 0.4; min-width: 280px; }
+.species-lane.active-group { opacity: 1; border-color: #1a1a1a; }
+.species-lane.highlight { opacity: 1; border-color: #1a1a1a; background: #f0f0f0; transform: scale(1.05); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1); }
+.lane-icon { font-size: 2rem; }
+.lane-label { font-size: 1.15rem; font-weight: 600; color: #1a1a1a; min-width: 80px; }
+.lane-animals { display: flex; align-items: center; gap: 0.3rem; min-width: 120px; width: 120px; justify-content: flex-start; }
+.lane-animal { font-size: 1.8rem; opacity: 0; transform: scale(0); transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.lane-animal.placed { opacity: 1; transform: scale(1); }
+.lane-animal.pre-existing { opacity: 0.5; }
+.lane-animal.happy { animation: happyBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes happyBounce { 0% { transform: scale(1); } 30% { transform: scale(1.35) rotate(5deg); } 60% { transform: scale(1.1) rotate(-3deg); } 100% { transform: scale(1) rotate(0deg); } }
+
+/* Intro & Text Styles */
+.intro-content-minimal { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 600px; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.big-text { font-size: clamp(1.8rem, 5.5vw, 2.9rem); font-weight: 700; text-align: center; line-height: 1.3; color: #1a1a1a; max-width: 600px; padding-top:10px}
+.medium-text { font-size: clamp(1rem, 2vw, 1.2rem); font-weight: 400; text-align: center; color: #666; max-width: 500px; margin-top: 1rem; }
+.word { display: inline-block; opacity: 0; transform: translateY(15px); transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+.word.visible { opacity: 1; transform: translateY(0); }
+.word.emphasis { color: #e65100; font-weight: 700; }
+
+/* Buttons */
+.btn-row { display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap; justify-content: center; }
+.btn { font-size: 1.1rem; font-weight: 600; font-family: inherit; color: #1a1a1a; background: transparent; cursor: pointer; padding: 0.8rem 1.7rem; border: 2px solid #1a1a1a; border-radius: 50px; transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); opacity: 0; transform: translateY(10px); }
+.btn.visible { opacity: 1; transform: translateY(0); }
+.btn:hover { background: rgba(0, 0, 0, 0.05); transform: translateY(-2px) scale(1.02); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); }
+.btn.primary { background: #1a1a1a; color: #f8f6f1; border-color: #1a1a1a; }
+.btn.primary:hover { background: #333; box-shadow: 0 6px 24px rgba(26, 26, 26, 0.25); }
+.btn.secondary { border-color: #aaa; color: #666; }
+
+/* Scene Specific Overrides */
+#scene2 .btn, #scene3 .btn, #scene5 .btn { color: #1a1a1a; border-color: #1a1a1a; }
+#scene2 .btn.primary, #scene3 .btn.primary, #scene5 .btn.primary { background: #1a1a1a; color: #f8f6f1; }
+#scene2 .btn.secondary { border-color: #aaa; color: #666; }
+
+/* Upload & Interaction Elements */
+.upload-zone { width: min(480px, 85vw); height: min(320px, 50vh); border: 3px dashed #ccc; border-radius: 24px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); margin-top: 2rem; }
+.upload-zone:hover, .upload-zone.dragover { border-color: #1a1a1a; background: rgba(0, 0, 0, 0.02); transform: scale(1.02); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08); }
+.upload-zone .icon { font-size: 3.5rem; margin-bottom: 1rem; opacity: 0.7; }
+.upload-zone p { font-size: 1.15rem; color: #888; }
+#file-input { display: none; }
+
+.result-image { max-width: min(380px, 80vw); max-height: 280px; border-radius: 16px; object-fit: cover; margin: 1.5rem 0; box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12); }
+.species-name { font-size: clamp(2.2rem, 7.5vw, 4.3rem); font-weight: 700; color: #1a1a1a; }
+.confidence { font-size: 1.15rem; color: #888; margin-top: 0.5rem; }
+.analyzing-dots span { animation: dotPulse 1.4s ease-in-out infinite; }
+.analyzing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.analyzing-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes dotPulse { 0%, 60%, 100% { opacity: 0.2; } 30% { opacity: 1; } }
+
+/* Tutorial & Steps */
+.tutorial-container { display: flex; flex-direction: column; align-items: center; gap: 2.5rem; margin-top: 2.5rem; width: 100%; max-width: 500px; }
+.tutorial-step { display: flex; align-items: center; gap: 1.25rem; width: 100%; opacity: 0; transform: translateX(-20px); transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.tutorial-step.visible { opacity: 1; transform: translateX(0); }
+.step-num { width: 48px; height: 48px; border-radius: 50%; background: #1a1a1a; color: #f8f6f1; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 700; flex-shrink: 0; }
+.step-text { flex: 1; }
+.step-title { font-size: 1.4rem; font-weight: 700; color: #1a1a1a; }
+.step-desc { font-size: 1.1rem; color: #666; margin-top: 0.15rem; }
+
+/* Navigation Links */
+.back-link { position: absolute; top: 2rem; left: 2rem; font-size: 1.1rem; color: rgba(255, 255, 255, 0.7); text-decoration: none; cursor: pointer; transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 20; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3); }
+.back-link:hover { color: #fff; transform: translateX(-3px); }
+#scene2 .back-link, #scene3 .back-link, #scene5 .back-link, #scene6 .back-link { color: #888; text-shadow: none; }
+#scene2 .back-link:hover, #scene3 .back-link:hover, #scene5 .back-link:hover, #scene6 .back-link:hover { color: #1a1a1a; transform: translateX(-3px); }
+.fade-in { opacity: 0; transform: translateY(10px); transition: all 0.5s ease; }
+.fade-in.visible { opacity: 1; transform: translateY(0); }
+.dashboard-link { position: absolute; top: 2rem; right: 2rem; font-size: 1.1rem; color: #888; text-decoration: none; cursor: pointer; transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 20; }
+.dashboard-link:hover { color: #1a1a1a; transform: translateX(3px); }
+.scientific-name { font-size: 1.3rem; font-style: italic; color: #666; margin-top: 0.25rem; font-weight: 400; }
+
+/* Dashboard Styles */
+.dashboard-container { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; max-width: 900px; margin-top: 1.5rem; }
+.dashboard-stats { display: flex; gap: 1.5rem; justify-content: center; }
+.stat-card { background: white; padding: 1.5rem 2rem; border-radius: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); text-align: center; min-width: 140px; }
+.stat-value { font-size: 2.5rem; font-weight: 700; color: #1a1a1a; display: block; }
+.stat-label { font-size: 0.95rem; color: #888; margin-top: 0.25rem; display: block; }
+.map-container { width: 100%; height: 350px; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); }
+#species-map { width: 100%; height: 100%; }
+.sightings-list { background: white; padding: 1.5rem; border-radius: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); }
+.sightings-list h3 { font-size: 1.2rem; margin-bottom: 1rem; color: #1a1a1a; }
+.sighting-item { display: flex; align-items: center; gap: 1rem; padding: 0.75rem; border-bottom: 1px solid #eee; }
+.sighting-item:last-child { border-bottom: none; }
+.sighting-thumb { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; }
+.sighting-info { flex: 1; }
+.sighting-species { font-weight: 600; color: #1a1a1a; }
+.sighting-meta { font-size: 0.85rem; color: #888; }
+.no-sightings { text-align: center; color: #888; padding: 2rem; }
+.leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); }
+.leaflet-popup-content { margin: 12px 16px; }
+
+/* ========== VIDEO MODULE STYLES ========== */
+.video-control-panel {
+    background: #fff;
+    border-radius: 24px;
+    padding: 2rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+    width: 100%;
+    max-width: 900px;
+}
+
+.settings-row {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.input-label {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.input-pill {
+    padding: 0.8rem 1.2rem;
+    border: 2px solid #ddd;
+    border-radius: 50px;
+    font-family: inherit;
+    font-weight: 700;
+    width: 100px;
+    text-align: center;
+    outline: none;
+    transition: all 0.3s ease;
+}
+.input-pill:focus { border-color: #1a1a1a; }
+
+.video-container {
+    width: 100%;
+    max-width: 900px;
+    background: #000;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    display: none; 
+    margin-top: 1rem;
+}
+video { width: 100%; display: block; max-height: 500px; }
+
+#videoProgress { 
+    width: 100%; 
+    max-width: 600px;
+    display: none; 
+    text-align: center;
+}
+.progress-track {
+    height: 8px;
+    background: #eee;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+.progress-fill {
+    height: 100%;
+    background: #1a1a1a;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+#videoResults { width: 100%; max-width: 1000px; margin-top: 2rem; }
+
+.species-section {
+    margin-bottom: 3rem;
+    animation: slideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+.species-header {
+    display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;
+    padding-bottom: 1rem; border-bottom: 2px solid #eee;
+}
+.species-title { font-size: 1.5rem; font-weight: 700; color: #1a1a1a; }
+.species-count { background: #eee; padding: 4px 12px; border-radius: 20px; font-size: 0.9rem; font-weight: 700; color: #666; }
+
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.5rem;
+}
+
+.thumb-card {
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+}
+.thumb-card:hover { transform: translateY(-8px); box-shadow: 0 12px 30px rgba(0,0,0,0.1); }
+
+.thumb-img {
+    width: 100%; height: 160px; object-fit: cover; cursor: zoom-in; display: block;
+}
+.thumb-content {
+    padding: 1rem; display: flex; flex-direction: column; gap: 0.8rem; align-items: center;
+}
+
+/* Modal for Image Zoom */
+.modal {
+    display: none; position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(248, 246, 241, 0.95);
+    backdrop-filter: blur(8px); z-index: 2000;
+    justify-content: center; align-items: center;
+}
+.modal.active { display: flex; animation: fadeIn 0.3s; }
+.modal-img {
+    max-width: 90%; max-height: 85vh; border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.close-modal {
+    position: absolute; top: 30px; right: 30px; width: 40px; height: 40px;
+    background: #1a1a1a; color: #fff; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 1.5rem;
+}
+
+.btn-timestamp {
+    background: transparent;
+    border: 2px solid #1a1a1a;
+    color: #1a1a1a;
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+    border-radius: 50px;
+    cursor: pointer;
+    font-weight: 700;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.3s ease;
+    width: 100%;
+    justify-content: center;
+    opacity: 1;
+}
+
+.btn-timestamp:hover {
+    background: #1a1a1a;
+    color: #fff;
+    transform: translateY(-2px);
+}
+</style>
+    
+
+<body>
+<div class="mode-selector">
+    <a href="{{ url_for('index') }}" class="mode-link active">Research</a>
+    <span class="divider">//</span>
+    <a href="{{ url_for('sen') }}" class="mode-link">Sensor Status</a>
+    <span class="divider">//</span>
+    <a href="{{ url_for('amb82_analysis') }}" class="mode-link">Vedio Analysis</a>
+</div>
+
+
+
+<div id="view-security">
+    <div class="scene" id="scene1">
+        <div class="hero-header">
+            <h1 class="hero-title" id="hero-title">Intelligent Wildlife Monitoring</h1>
+            <p class="hero-subtitle" id="hero-subtitle"></p>
+        </div>
+        <div class="scene1-content">
+            <div class="sorting-demo">
+                <div class="queue-area">
+                    <div class="queue-label">Identify</div>
+                    <div id="animal-queue"></div>
+                </div>
+                <div class="sort-arrow">→</div>
+                <div class="lanes-container" id="lanes-container"></div>
+            </div>
+            <div class="intro-content-minimal">
+                <h2 class="big-text" id="punch-line"></h2>
+                <p class="medium-text" id="context-line">If we don't know what species exist, we cannot conserve them.</p>
+                <div class="btn-row">
+                    <button class="btn primary" id="btn-upload">Upload a photo</button>
+                    <button class="btn primary" id="btn-video-mode">Upload a video</button>
+                    <button class="btn secondary" id="btn-how">How it works</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="scene hidden" id="scene2">
+        <span class="back-link" id="back-from-tutorial">← Back</span>
+        <h1 class="big-text">Three steps.</h1>
+        <div class="tutorial-container">
+            <div class="tutorial-step" id="step1">
+                <div class="step-num">1</div>
+                <div class="step-text">
+                    <div class="step-title">Find any photo with an animal</div>
+                    <div class="step-desc">Camera trap, phone photo, anything works</div>
+                </div>
+            </div>
+            <div class="tutorial-step" id="step2">
+                <div class="step-num">2</div>
+                <div class="step-text">
+                    <div class="step-title">Drop it in the upload zone</div>
+                    <div class="step-desc">Drag and drop, or click to browse</div>
+                </div>
+            </div>
+            <div class="tutorial-step" id="step3">
+                <div class="step-num">3</div>
+                <div class="step-text">
+                    <div class="step-title">Get the species in seconds</div>
+                    <div class="step-desc">AI compares against 2 million known species</div>
+                </div>
+            </div>
+        </div>
+        <div class="btn-row">
+            <button class="btn primary fade-in" id="btn-go">Let's try it</button>
+        </div>
+    </div>
+
+    <div class="scene hidden" id="scene3">
+        <span class="back-link" id="back-from-upload">← Back</span>
+        <h1 class="big-text">Drop your photo</h1>
+        <div class="upload-zone" id="upload-zone">
+            <div class="icon">📷</div>
+            <p>or click to browse</p>
+        </div>
+        <input type="file" id="file-input" accept="image/*">
+    </div>
+
+    <div class="scene hidden" id="scene4">
+        <h1 class="big-text">Identifying<span class="analyzing-dots"><span>.</span><span>.</span><span>.</span></span></h1>
+        <p class="medium-text">Searching through millions of species</p>
+    </div>
+
+    <div class="scene hidden" id="scene5">
+        <span class="back-link" id="back-from-result">← Start Over</span>
+        <span class="dashboard-link" id="goto-dashboard">📊 Dashboard →</span>
+        <p class="medium-text" style="margin-top:0;">This is a</p>
+        <img class="result-image" id="result-image" src="" alt="Uploaded animal">
+        <h1 class="species-name" id="species-name">...</h1>
+        <p class="scientific-name" id="scientific-name">...</p>
+        <p class="confidence" id="confidence">...</p>
+        <div class="btn-row">
+            <button class="btn primary" id="btn-another">Try another</button>
+            <button class="btn secondary" id="btn-dashboard">View species map</button>
+        </div>
+    </div>
+
+    <div class="scene hidden" id="scene6">
+        <span class="back-link" id="back-from-dashboard">← Back</span>
+        <h1 class="big-text" id="dashboard-title">Species Sightings</h1>
+        <div class="dashboard-container">
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <span class="stat-value" id="total-sightings">0</span>
+                    <span class="stat-label">Total Sightings</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value" id="unique-species">0</span>
+                    <span class="stat-label">Species Detected</span>
+                </div>
+            </div>
+            <div class="map-container" id="map-container">
+                <div id="species-map"></div>
+            </div>
+            <div class="sightings-list" id="sightings-list">
+                <h3>Recent Sightings</h3>
+                <div id="sightings-items"></div>
+            </div>
+            <div class="debug-actions" style="margin-top: 1rem; text-align: center;">
+                <button class="btn secondary" id="btn-clear-sightings" style="font-size: 0.9rem; padding: 0.5rem 1rem;">🗑️ Clear All</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="scene hidden" id="scene-video" style="padding-top: 4rem;">
+        <span class="back-link" id="back-from-video">← Back</span>
+        <h1 class="big-text">Video Intelligence</h1>
+        <p class="medium-text" style="margin-bottom: 2rem;">Automated Detection & Classification</p>
+
+        <div class="video-control-panel">
+            <div class="upload-zone" id="videoDropZone">
+                <div class="icon">🎬</div>
+                <p>Drop video here or click to browse</p>
+            </div>
+            <input type="file" id="videoInput" accept="video/*" style="display:none;">
+
+            <div class="settings-row">
+                <div class="input-group">
+                    <span class="input-label">Sample FPS</span>
+                    <input type="number" id="sampleFps" value="1" min="0.5" max="5" step="0.5" class="input-pill">
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Min Confidence</span>
+                    <input type="number" id="minConfidence" value="0.3" min="0.1" max="0.9" step="0.1" class="input-pill">
+                </div>
+                
+             <button class="btn primary visible" id="btnStartAnalysis" onclick="uploadVideo()">
+                <span>Start Analysis</span>
+                <span>→</span>
+            </button>
+            </div>
+
+            <div id="videoProgress">
+                <div class="progress-track">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <p class="analyzing-text">Processing Video Frame by Frame<span class="analyzing-dots"><span>.</span><span>.</span><span>.</span></span></p>
+            </div>
+        </div>
+
+        <div id="videoWrapper" class="video-container">
+            <video id="mainPlayer" controls playsinline>
+                Your browser does not support the video tag.
+            </video>
+        </div>
+
+        <div id="videoResults"></div>
+    </div>
+
+    <div id="imageModal" class="modal" onclick="closeModal()">
+        <div class="close-modal">×</div>
+        <img class="modal-img" id="modalImg">
+    </div>
+</div>
+
+<script>
+    const scenes = document.querySelectorAll('.scene');
+    const punchLine = "You can't protect what you don't know you have.";
+
+    // --- DATA & STATE ---
+    const speciesGroups = [
+        { id: 'fox', emoji: '🦊', label: 'Foxes', preExisting: 1 },
+        { id: 'bear', emoji: '🐻', label: 'Bears', preExisting: 1 },
+        { id: 'owl', emoji: '🦉', label: 'Owls', preExisting: 1 },
+    ];
+    const animalsToSort = [
+        { emoji: '🦊', speciesId: 'fox' }, { emoji: '🐻', speciesId: 'bear' },
+        { emoji: '🦉', speciesId: 'owl' }, { emoji: '🦊', speciesId: 'fox' },
+        { emoji: '🐻', speciesId: 'bear' },
+    ];
+    
+    let sortingAnimationInterval = null;
+    let currentQueue = [];
+    let userLocation = null;
+    let speciesMap = null;
+    const STORAGE_KEY = 'speciesnet_sightings_v2';
+
+    // --- ANIMATION HELPERS ---
+    function shuffleArray(array) {
+        const arr = [...array];
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    function createLanes() {
+        const container = document.getElementById('lanes-container');
+        container.innerHTML = '';
+        speciesGroups.forEach((species, index) => {
+            const lane = document.createElement('div');
+            lane.className = 'species-lane';
+            lane.dataset.species = species.id;
+            lane.innerHTML = `<span class="lane-icon">${species.emoji}</span><span class="lane-label">${species.label}</span><div class="lane-animals" id="lane-${species.id}"></div>`;
+            container.appendChild(lane);
+            const laneAnimals = lane.querySelector('.lane-animals');
+            for (let i = 0; i < species.preExisting; i++) {
+                const animal = document.createElement('span');
+                animal.className = 'lane-animal placed pre-existing';
+                animal.textContent = species.emoji;
+                laneAnimals.appendChild(animal);
+            }
+        });
+    }
+
+    function scrollToLane(speciesId) {
+        const lane = document.querySelector(`[data-species="${speciesId}"]`);
+        if (lane) {
+            document.querySelectorAll('.species-lane').forEach(l => l.classList.remove('active-group'));
+            lane.classList.add('active-group');
+        }
+    }
+
+    function initSortingAnimation() {
+        currentQueue = shuffleArray(animalsToSort);
+        createLanes();
+        document.querySelector('.sorting-demo').classList.add('ready');
+        const queueContainer = document.getElementById('animal-queue');
+        queueContainer.innerHTML = '';
+        currentQueue.forEach((animal, index) => {
+            const el = document.createElement('div');
+            el.className = 'queue-animal';
+            el.textContent = animal.emoji;
+            el.dataset.index = index;
+            queueContainer.appendChild(el);
+            setTimeout(() => {
+                el.classList.add('visible');
+                if (index === 0) el.classList.add('current');
+            }, index * 100 + 200);
+        });
+        setTimeout(startSorting, currentQueue.length * 100 + 800);
+    }
+
+    function startSorting() {
+        let index = 0;
+        sortingAnimationInterval = setInterval(() => {
+            if (index >= currentQueue.length) {
+                clearInterval(sortingAnimationInterval);
+                sortingAnimationInterval = null;
+                setTimeout(celebrateAll, 400);
+                return;
+            }
+            const animal = currentQueue[index];
+            sortAnimal(animal, index);
+            index++;
+        }, 1800);
+    }
+
+    function sortAnimal(animal, queueIndex) {
+        const queueEl = document.querySelector(`.queue-animal[data-index="${queueIndex}"]`);
+        const nextQueueEl = document.querySelector(`.queue-animal[data-index="${queueIndex + 1}"]`);
+        const lane = document.querySelector(`[data-species="${animal.speciesId}"]`);
+        const laneAnimals = document.getElementById(`lane-${animal.speciesId}`);
+        scrollToLane(animal.speciesId);
+        document.querySelectorAll('.species-lane').forEach(l => l.classList.remove('highlight'));
+        setTimeout(() => lane.classList.add('highlight'), 200);
+        if (queueEl) { queueEl.classList.remove('current'); queueEl.classList.add('sorting'); }
+        if (nextQueueEl) { setTimeout(() => nextQueueEl.classList.add('current'), 300); }
+        setTimeout(() => {
+            if (queueEl) queueEl.remove();
+            const laneAnimal = document.createElement('span');
+            laneAnimal.className = 'lane-animal';
+            laneAnimal.textContent = animal.emoji;
+            laneAnimals.appendChild(laneAnimal);
+            setTimeout(() => {
+                laneAnimal.classList.add('placed');
+                laneAnimal.classList.add('happy');
+            }, 50);
+            setTimeout(() => laneAnimal.classList.remove('happy'), 750);
+        }, 500);
+    }
+
+    function celebrateAll() {
+        document.querySelectorAll('.lane-animal.placed:not(.pre-existing)').forEach((el, i) => {
+            setTimeout(() => {
+                el.classList.add('happy');
+                setTimeout(() => el.classList.remove('happy'), 700);
+            }, i * 80);
+        });
+        document.querySelectorAll('.species-lane').forEach(l => l.classList.remove('highlight'));
+        document.getElementById('lanes-container').style.transform = 'translateY(0)';
+        setTimeout(() => {
+            if (document.getElementById('scene1').classList.contains('active')) initSortingAnimation();
+        }, 3500);
+    }
+
+    function stopSortingAnimation() {
+        if (sortingAnimationInterval) { clearInterval(sortingAnimationInterval); sortingAnimationInterval = null; }
+    }
+
+    function typewriterWords(text, elementId, callback, emphasisWords = []) {
+        const element = document.getElementById(elementId);
+        const words = text.split(' ');
+        element.innerHTML = words.map(w => {
+            const cleanWord = w.replace(/[^a-zA-Z']/g, '').toLowerCase();
+            const isEmphasis = emphasisWords.some(ew => cleanWord.includes(ew.toLowerCase()));
+            return `<span class="word${isEmphasis ? ' emphasis' : ''}">${w}</span>`;
+        }).join(' ');
+        const wordElements = element.querySelectorAll('.word');
+        wordElements.forEach((word, i) => {
+            setTimeout(() => {
+                word.classList.add('visible');
+                if (i === wordElements.length - 1 && callback) setTimeout(callback, 400);
+            }, i * 120);
+        });
+    }
+
+    // --- NAVIGATION & UI ---
+    function showScene(numOrId) {
+        stopSortingAnimation();
+        scenes.forEach(s => { s.classList.remove('active'); s.classList.add('hidden'); });
+        
+        // Handle both ID string or Number
+        let scene;
+        if (typeof numOrId === 'string' && numOrId === 'video') {
+             scene = document.getElementById('scene-video');
+        } else {
+             scene = document.getElementById(`scene${numOrId}`);
+        }
+
+        if(scene) {
+            scene.classList.remove('hidden');
+            requestAnimationFrame(() => requestAnimationFrame(() => scene.classList.add('active')));
+        }
+
+        if (numOrId === 1) {
+            setTimeout(() => {
+                document.getElementById('hero-title').classList.add('visible');
+                document.getElementById('hero-subtitle').classList.add('visible');
+            }, 100);
+            setTimeout(initSortingAnimation, 400);
+            typewriterWords(punchLine, 'punch-line', () => {
+                setTimeout(() => document.getElementById('context-line').classList.add('visible'), 300);
+                setTimeout(() => document.querySelectorAll('#scene1 .btn').forEach((btn, i) => setTimeout(() => btn.classList.add('visible'), i * 100)), 700);
+            }, ['protect', 'don\'t', 'know']);
+        } else if (numOrId === 2) {
+            setTimeout(() => document.getElementById('step1').classList.add('visible'), 200);
+            setTimeout(() => document.getElementById('step2').classList.add('visible'), 400);
+            setTimeout(() => document.getElementById('step3').classList.add('visible'), 600);
+            setTimeout(() => document.getElementById('btn-go').classList.add('visible'), 800);
+        } else if (numOrId === 3) {
+            document.getElementById('file-input').value = '';
+        } else if (numOrId === 6) {
+            loadDashboard();
+        }
+    }
+
+    function resetIntroAnimations() {
+        document.getElementById('hero-title').classList.remove('visible');
+        document.getElementById('hero-subtitle').classList.remove('visible');
+        document.getElementById('punch-line').innerHTML = '';
+        document.getElementById('context-line').classList.remove('visible');
+        document.querySelectorAll('#scene1 .btn').forEach(btn => btn.classList.remove('visible'));
+    }
+
+    // Event Listeners
+    document.getElementById('btn-upload').onclick = () => showScene(3);
+    document.getElementById('btn-how').onclick = () => showScene(2);
+    document.getElementById('btn-go').onclick = () => showScene(3);
+    document.getElementById('back-from-tutorial').onclick = () => { resetIntroAnimations(); showScene(1); };
+    document.getElementById('back-from-upload').onclick = () => { resetIntroAnimations(); showScene(1); };
+    document.getElementById('btn-another').onclick = () => showScene(3);
+    document.getElementById('back-from-result').onclick = () => { resetIntroAnimations(); showScene(1); };
+    document.getElementById('goto-dashboard').onclick = showDashboard;
+    document.getElementById('btn-dashboard').onclick = showDashboard;
+    document.getElementById('back-from-dashboard').onclick = () => showScene(5);
+
+    // --- GEOLOCATION ---
+    navigator.geolocation.getCurrentPosition(
+        (pos) => { 
+            userLocation = { latitude: pos.coords.latitude, longitude: pos.coords.longitude }; 
+            console.log("Loc:", userLocation); 
+        },
+        (err) => console.log("Geo error", err)
+    );
+
+    // --- FILE HANDLING ---
+    const uploadZone = document.getElementById('upload-zone');
+    const fileInput = document.getElementById('file-input');
+
+    uploadZone.onclick = () => fileInput.click();
+    uploadZone.ondragover = (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); };
+    uploadZone.ondragleave = () => uploadZone.classList.remove('dragover');
+    uploadZone.ondrop = (e) => { e.preventDefault(); uploadZone.classList.remove('dragover'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); };
+    fileInput.onchange = (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); };
+
+    async function handleFile(file) {
+        if (!file.type.startsWith('image/')) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const base64Image = e.target.result;
+            document.getElementById('result-image').src = base64Image;
+            showScene(4); // Show "Identifying..."
+
+            try {
+                // 1. Prepare Payload for Backend
+                const payload = {
+                    image: base64Image,
+                    location: userLocation 
+                };
+
+                // 2. Fetch from Python Backend
+                const response = await fetch('/api/detect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // 3. Update UI with Real Data
+                    document.getElementById('species-name').textContent = result.species;
+                    document.getElementById('scientific-name').textContent = result.scientific_name;
+                    document.getElementById('confidence').textContent = Math.round((result.confidence || 0) * 100) + "% confidence";
+
+                    // 4. Save to LocalStorage for Dashboard
+                    const sightingData = {
+                        species: result.species,
+                        scientific_name: result.scientific_name,
+                        confidence: result.confidence,
+                        latitude: result.location?.latitude || userLocation?.latitude,
+                        longitude: result.location?.longitude || userLocation?.longitude,
+                        timestamp: new Date().toISOString(),
+                        imageData: base64Image
+                    };
+                    saveSighting(sightingData);
+
+                    showScene(5); // Show Result Scene
+                } else {
+                    alert("Error: " + result.error);
+                    showScene(3);
+                }
+            } catch (error) {
+                console.error('API Error:', error);
+                alert("Could not connect to the backend. Is the Colab cell running?");
+                showScene(3);
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // --- DASHBOARD LOGIC ---
+    function getSightings() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } 
+        catch { return []; }
+    }
+
+    function saveSighting(sighting) {
+        const sightings = getSightings();
+        sightings.unshift(sighting);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sightings.slice(0, 50)));
+    }
+
+    function clearAllSightings() {
+        localStorage.removeItem(STORAGE_KEY);
+        loadDashboard();
+    }
+
+    function getSpeciesColor(species) {
+        const colors = ['#e53935', '#d81b60', '#8e24aa', '#5e35b1', '#3949ab', '#1e88e5', '#039be5', '#00acc1', '#00897b', '#43a047', '#7cb342', '#c0ca33', '#fdd835', '#ffb300', '#fb8c00', '#f4511e'];
+        let hash = 0;
+        for (let i = 0; i < species.length; i++) hash = species.charCodeAt(i) + ((hash << 5) - hash);
+        return colors[Math.abs(hash) % colors.length];
+    }
+
+    function loadDashboard() {
+        const sightings = getSightings();
+        document.getElementById('total-sightings').textContent = sightings.length;
+        document.getElementById('unique-species').textContent = new Set(sightings.map(s => s.species)).size;
+
+        const listContainer = document.getElementById('sightings-items');
+        if (sightings.length === 0) {
+            listContainer.innerHTML = '<div class="no-sightings">No sightings yet. Upload a photo!</div>';
+        } else {
+            listContainer.innerHTML = sightings.slice(0, 10).map(s => `
+                <div class="sighting-item">
+                    <div class="sighting-info">
+                        <div class="sighting-species">${s.species}</div>
+                        <div class="sighting-meta">
+                            ${s.scientific_name ? `<i>${s.scientific_name}</i> · ` : ''}
+                            ${new Date(s.timestamp).toLocaleDateString()}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Map Logic
+        if (speciesMap) speciesMap.remove();
+        setTimeout(() => {
+            speciesMap = L.map('species-map').setView([20, 0], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(speciesMap);
+            
+            const bounds = [];
+            sightings.forEach(s => {
+                if (s.latitude && s.longitude) {
+                    const color = getSpeciesColor(s.species);
+                    L.circleMarker([s.latitude, s.longitude], {
+                        radius: 10, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.8
+                    }).addTo(speciesMap).bindPopup(`<b>${s.species}</b><br>${new Date(s.timestamp).toLocaleDateString()}`);
+                    bounds.push([s.latitude, s.longitude]);
+                }
+            });
+            if (bounds.length > 0) speciesMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
+        }, 200);
+    }
+
+    function showDashboard() { showScene(6); loadDashboard(); }
+    document.getElementById('btn-clear-sightings').onclick = () => { if(confirm('Clear history?')) clearAllSightings(); };
+
+    // Start
+    setTimeout(() => { const firstGroup = speciesGroups[0].id; scrollToLane(firstGroup); }, 100);
+    showScene(1);
+
+    // ==========================================
+    // VIDEO ANALYSIS LOGIC
+    // ==========================================
+    
+    document.getElementById('btn-video-mode').onclick = () => showScene('video');
+    document.getElementById('back-from-video').onclick = () => { resetIntroAnimations(); showScene(1); };
+    
+    const videoDropZone = document.getElementById('videoDropZone');
+    const videoInput = document.getElementById('videoInput');
+
+    videoDropZone.onclick = () => videoInput.click();
+
+    videoDropZone.ondragover = (e) => { 
+        e.preventDefault(); 
+        videoDropZone.classList.add('dragover'); 
+        videoDropZone.querySelector('p').textContent = "Release to upload";
+    };
+
+    videoDropZone.ondragleave = () => { 
+        videoDropZone.classList.remove('dragover'); 
+        videoDropZone.querySelector('p').textContent = "Drop video here or click to browse";
+    };
+
+    videoDropZone.ondrop = (e) => { 
+        e.preventDefault(); 
+        videoDropZone.classList.remove('dragover');
+        if(e.dataTransfer.files[0]) {
+            videoInput.files = e.dataTransfer.files;
+            handleVideoFile(e.dataTransfer.files[0]);
+        }
+    };
+
+    videoInput.onchange = (e) => {
+        if (e.target.files[0]) handleVideoFile(e.target.files[0]);
+    };
+
+    function handleVideoFile(file) {
+        videoDropZone.innerHTML = `<div class="icon">✅</div><p>${file.name}</p>`;
+        videoDropZone.style.borderColor = '#43a047';
+        
+        const fileURL = URL.createObjectURL(file);
+        const player = document.getElementById('mainPlayer');
+        player.src = fileURL;
+        document.getElementById('videoWrapper').style.display = 'block';
+    }
+
+    async function uploadVideo() {
+        const file = videoInput.files[0];
+        const progressBar = document.getElementById('progressFill');
+        const progressArea = document.getElementById('videoProgress');
+        const resultsArea = document.getElementById('videoResults');
+        
+        if (!file) { alert('Please select a video first.'); return; }
+        
+        progressArea.style.display = 'block';
+        resultsArea.innerHTML = '';
+        progressBar.style.width = '10%';
+        
+        const formData = new FormData();
+        formData.append('video', file);
+        formData.append('source', 'web');
+        formData.append('sample_fps', document.getElementById('sampleFps').value);
+        formData.append('min_confidence', document.getElementById('minConfidence').value);
+        
+        try {
+            // Fake progress for UX
+            let fakeProgress = 10;
+            const interval = setInterval(() => {
+                if(fakeProgress < 90) {
+                    fakeProgress += 5;
+                    progressBar.style.width = fakeProgress + '%';
+                }
+            }, 300);
+
+            // POST to Django Backend
+            const response = await fetch('/api/video/upload?mode=full', {
+                method: 'POST',
+                body: formData
+            });
+            
+            clearInterval(interval);
+            progressBar.style.width = '100%';
+
+            const data = await response.json();
+            
+            setTimeout(() => {
+                progressArea.style.display = 'none';
+                progressBar.style.width = '0%';
+                if (data.success) {
+                    displayVideoResults(data);
+                    resultsArea.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            }, 500);
+
+        } catch (e) {
+            console.error(e);
+            alert('Upload failed: ' + e.message);
+            progressArea.style.display = 'none';
+        }
+    }
+
+    function displayVideoResults(data) {
+        const container = document.getElementById('videoResults');
+        
+        const detections = data.results || data.detections || [];
+        
+        const bySpecies = {};
+        
+        detections.forEach(d => {
+            if (!bySpecies[d.species]) bySpecies[d.species] = [];
+            bySpecies[d.species].push(d);
+        });
+
+        if (detections.length === 0) {
+            container.innerHTML = `<div style="text-align:center; padding:2rem; color:#888;">No animals detected in this clip.</div>`;
+            return;
+        }
+
+        let html = '';
+        for (const [species, dets] of Object.entries(bySpecies)) {
+            dets.sort((a, b) => a.timestamp - b.timestamp);
+            html += `
+                <div class="species-section">
+                    <div class="species-header">
+                        <h3 class="species-title">${species}</h3>
+                        <span class="species-count">${dets.length} sightings</span>
+                    </div>
+                    <div class="video-grid">
+            `;
+            dets.forEach(d => {
+                const label = d.timestamp_str || formatTime(d.timestamp);
+                html += `
+                    <div class="thumb-card">
+                        <img src="${d.image_url || ''}" 
+                                class="thumb-img" 
+                                onclick="openModal('${d.image_url}')" 
+                                loading="lazy"
+                                onerror="this.onerror=null; this.src='https://placehold.co/600x400/1a1a1a/FFF?text=Image+Lost';">
+                        <div class="thumb-content">
+                            <button class="btn-timestamp" onclick="seekVideo(${d.timestamp})" style="width:100%; justify-content:center;">
+                                ▶ ${label}
+                            </button>
+                            <span class="confidence-badge">${Math.round(d.confidence*100)}% Confidence</span>
+                        </div>
+                    </div>
+                `;
+            });
+            html += `</div></div>`;
+        }
+        container.innerHTML = html;
+    }
+
+    function seekVideo(seconds) {
+        const player = document.getElementById('mainPlayer');
+        player.currentTime = seconds;
+        player.play();
+        document.getElementById('videoWrapper').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function openModal(imgUrl) {
+        if (!imgUrl) return;
+        const modal = document.getElementById('imageModal');
+        document.getElementById('modalImg').src = imgUrl;
+        modal.classList.add('active');
+        document.body.style.overflow = "hidden";
+    }
+
+    function closeModal() {
+        document.getElementById('imageModal').classList.remove('active');
+        document.body.style.overflow = "auto";
+    }
+
+    function formatTime(seconds) {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        return `${h > 0 ? h + ':' : ''}${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+    }
+</script>
+</body>
+</html>
