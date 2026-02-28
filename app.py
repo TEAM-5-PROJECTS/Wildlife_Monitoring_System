@@ -2,6 +2,7 @@
 # 0. CRITICAL HARDWARE CONFIGURATION
 # ==========================================
 import os
+
 # This forces the Roboflow/ONNX package to completely ignore your GPU.
 os.environ["ONNXRUNTIME_EXECUTION_PROVIDERS"] = "CPUExecutionProvider"
 
@@ -518,7 +519,11 @@ def detect():
 
         if model_manager.model:
             result = model_manager.predict(filepath)
+            
+            # 1. Read the image into OpenCV BEFORE deleting the temp file
+            img = cv2.imread(filepath)
             if os.path.exists(filepath): os.remove(filepath)
+            
             if result:
                 predictions = result.get('predictions', {})
                 if not predictions: 
@@ -543,12 +548,69 @@ def detect():
                     species = top_class.title()
                     scientific = top_class
 
+              # ==========================================
+                # 🚀 NEW: WEAPON DETECTION FOR SINGLE IMAGES
+                # ==========================================
+                
+                # Debug Print 1: See what SpeciesNet actually returned
+                print(f"\n📸 UI UPLOAD SCANNED: GPU thinks it is a '{species}' (Conf: {top_score:.2f})")
+                
+                processed_b64 = None
+                
+                # Make the check more forgiving
+                is_human = "human" in species.lower() or "person" in species.lower()
+
+                if is_human and img is not None:
+                    print("👤 Human detected! Routing image to Intel i5 CPU for Weapon Scan...")
+                    
+                    # Resize for CPU speed
+                    h, w = img.shape[:2]
+                    if w > 640:
+                        scale = 640 / w
+                        img = cv2.resize(img, (640, int(h * scale)))
+                    
+                    try:
+                        # Run Weapon Model on Intel i5
+                        weapon_res = model_manager.weapon_model.infer(img, confidence=0.5)
+                        
+                        # Debug Print 2: See how many weapons the CPU found
+                        print(f"🎯 Weapon scan complete. Found {len(weapon_res[0].predictions)} threats.")
+                        
+                        if len(weapon_res[0].predictions) > 0:
+                            print("🚨 LETHAL WEAPON DETECTED in UI upload! Drawing boxes...")
+                            species = "ARMED HUMAN"
+                            scientific = "Lethal Threat Detected"
+                            top_score = float(weapon_res[0].predictions[0].confidence)
+                            
+                            # Draw Red Bounding Boxes
+                            for pred in weapon_res[0].predictions:
+                                x1 = int(pred.x - (pred.width / 2))
+                                y1 = int(pred.y - (pred.height / 2))
+                                x2 = int(pred.x + (pred.width / 2))
+                                y2 = int(pred.y + (pred.height / 2))
+                                label = f"{pred.class_name} {pred.confidence:.2f}"
+                                cv2.rectangle(img, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                                cv2.putText(img, label, (x1, max(y1 - 10, 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                            
+                            # Convert the drawn image back to base64
+                            _, buffer = cv2.imencode('.jpg', img)
+                            processed_b64 = "data:image/jpeg;base64," + base64.b64encode(buffer).decode('utf-8')
+                            
+                    except Exception as e:
+                        print(f"❌ CPU Weapon Model Error: {e}")
+                        
+                elif is_human and img is None:
+                    print("❌ ERROR: SpeciesNet saw a human, but OpenCV failed to read the image file.")
+
                 return jsonify({
-                    "success": True, "species": species, "scientific_name": scientific, "confidence": float(top_score)
+                    "success": True, 
+                    "species": species, 
+                    "scientific_name": scientific, 
+                    "confidence": float(top_score),
+                    "processed_image": processed_b64 
                 })
             else:
                 return jsonify(success=False, error="Inference failed."), 500
-        return jsonify(success=False, error="Model offline"), 500
     except Exception as e:
         import traceback
         traceback.print_exc()
