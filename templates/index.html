@@ -807,7 +807,7 @@ video { width: 100%; display: block; max-height: 500px; }
 
         const reader = new FileReader();
         reader.onload = async (e) => {
-            const base64Image = e.target.result;
+            let base64Image = e.target.result;
             document.getElementById('result-image').src = base64Image;
             showScene(4); // Show "Identifying..."
 
@@ -828,6 +828,12 @@ video { width: 100%; display: block; max-height: 500px; }
                 const result = await response.json();
 
                 if (result.success) {
+                    // 🚀 NEW: If the backend drew a red box around a weapon, swap the image!
+                    if (result.processed_image) {
+                        document.getElementById('result-image').src = result.processed_image;
+                        base64Image = result.processed_image; // Updates the variable so the dashboard map gets the boxed version
+                    }
+
                     // 3. Update UI with Real Data
                     document.getElementById('species-name').textContent = result.species;
                     document.getElementById('scientific-name').textContent = result.scientific_name;
