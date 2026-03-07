@@ -246,18 +246,46 @@
 .conf-high { color: #2e7d32; background: #e8f5e9; } /* Green */
 .conf-med  { color: #f57f17; background: #fff3e0; } /* Orange */
 .conf-low  { color: #c62828; background: #ffebee; } /* Red */
+/* --- FILTERS --- */
+        .filter-bar {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .filter-row { display: flex; gap: 0.5rem; width: 100%; }
+        .filter-input { 
+            padding: 8px 10px; 
+            border: 1px solid #e0e0e0; 
+            border-radius: 8px; 
+            font-family: inherit;
+            font-size: 0.8rem;
+            flex: 1;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .filter-input:focus { border-color: #1a1a1a; }
+        .filter-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+        .btn-apply { background: #1a1a1a; color: white; border: none; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-family: inherit; font-weight: 700;}
+        .btn-apply:hover { background: #333; }
+        .btn-clear { background: #f0f0f0; color: #1a1a1a; border: none; padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-family: inherit; font-weight: 700;}
+        .btn-clear:hover { background: #e0e0e0; }
     </style>
 </head>
 <body>
 
-  <div class="mode-selector">
+<div class="mode-selector">
     <a href="{{ url_for('index') }}" class="mode-link">Research</a>
     <span class="divider">//</span>
     <a href="{{ url_for('sen') }}" class="mode-link">Sensor Status</a>
     <span class="divider">//</span>
     <a href="{{ url_for('amb82_analysis') }}" class="mode-link active">Video Analysis</a>
     <span class="divider">//</span>
-    <a href="{{ url_for('analytics') }}" class="mode-link ">Analytics</a> 
+    <a href="{{ url_for('analytics') }}" class="mode-link">Analytics</a> 
+    <span class="divider">//</span>
+    <a href="{{ url_for('settings') }}" class="mode-link ">Settings</a> 
 </div>
 
     <div id="view-field">
@@ -293,12 +321,29 @@
                 </div>
             </div>
 
-            <div class="feed-panel">
+<div class="feed-panel">
                 <div class="feed-header">
                     <span class="feed-title">Incoming Feeds</span>
                     <button class="refresh-btn" onclick="loadHistory()" title="Refresh">↻</button>
                 </div>
                 
+                <div class="filter-bar">
+                    <div class="filter-row">
+                        <select id="speciesFilter" class="filter-input">
+                            <option value="">All Species</option>
+                        </select>
+                        <input type="date" id="dateFilter" class="filter-input" title="Filter by Date">
+                    </div>
+                    <div class="filter-row">
+                        <input type="time" id="startTimeFilter" class="filter-input" title="Start Time">
+                        <span style="font-size:0.8rem; color:#888; align-self:center;">to</span>
+                        <input type="time" id="endTimeFilter" class="filter-input" title="End Time">
+                    </div>
+                    <div class="filter-actions">
+                        <button class="btn-clear" onclick="clearFilters()">Clear</button>
+                        <button class="btn-apply" onclick="applyFilters()">Apply</button>
+                    </div>
+                </div>
                 <div class="feed-list" id="historyList">
                     <div style="text-align:center; color:#aaa; padding:2rem;">Loading...</div>
                 </div>
@@ -312,168 +357,235 @@
         <img class="modal-img" id="modalImg">
     </div>
 
-    <script>
+<script>
         const API_HISTORY = '/api/history';
         const VIDEO_BASE_PATH = '/uploads/videos/'; 
-        let currentHistoryData = [];
+        let currentHistoryData = []; // Only declared once!
 
         async function loadHistory() {
             const listContainer = document.getElementById('historyList');
             const btn = document.querySelector('.refresh-btn');
             
             // Rotate animation
-            btn.style.transform = "rotate(360deg)";
-            setTimeout(() => btn.style.transform = "none", 500);
+            if(btn) {
+                btn.style.transform = "rotate(360deg)";
+                setTimeout(() => btn.style.transform = "none", 500);
+            }
 
             try {
                 const response = await fetch(API_HISTORY);
                 const data = await response.json();
                 currentHistoryData = data;
 
-                if (data.length === 0) {
-                    listContainer.innerHTML = '<div style="text-align:center; color:#aaa; padding:1rem;">No recordings found.</div>';
-                    return;
-                }
-
-                listContainer.innerHTML = '';
+                populateSpeciesFilter(data);
                 
-                data.forEach((item, index) => {
-                    // Calculate stats
-                    const speciesSet = new Set(item.detections.map(d => d.species));
-                    const uniqueCount = speciesSet.size;
-                    
-                    // Date Format
-                    const dateObj = new Date(item.time);
-                    const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                    const dateStr = dateObj.toLocaleDateString();
-
-                    const el = document.createElement('div');
-                    el.className = 'feed-item';
-                    el.onclick = () => selectVideo(index);
-                    el.innerHTML = `
-                        <div class="item-top">
-                            <span class="item-id">Capture #${item.id}</span>
-                            <span class="item-time">${timeStr}</span>
-                        </div>
-                        <div style="font-size:0.8rem; color:#888; margin-bottom:4px;">${dateStr}</div>
-                        <div class="item-tags">
-                            <span class="tag">${uniqueCount} Species</span>
-                            <span class="tag">${item.detections.length} Events</span>
-                        </div>
-                    `;
-                    listContainer.appendChild(el);
-                });
+                // Render list, mapping original indices so clicks load the right video
+                const dataWithIndices = data.map((item, index) => ({...item, originalIndex: index}));
+                renderHistoryList(dataWithIndices);
 
             } catch (e) {
                 console.error(e);
-                listContainer.innerHTML = '<div style="color:#e53935; text-align:center;">Connection Error</div>';
+                listContainer.innerHTML = '<div style="color:#e53935; text-align:center; padding: 2rem;">Connection Error. Check console.</div>';
             }
+        }
+
+        function populateSpeciesFilter(data) {
+            const speciesSet = new Set();
+            data.forEach(item => {
+                if (item.detections) {
+                    item.detections.forEach(d => speciesSet.add(d.species));
+                }
+            });
+            
+            const select = document.getElementById('speciesFilter');
+            if(!select) return;
+
+            select.innerHTML = '<option value="">All Species</option>';
+            Array.from(speciesSet).sort().forEach(sp => {
+                select.innerHTML += `<option value="${sp}">${sp}</option>`;
+            });
+        }
+
+        function renderHistoryList(dataToRender) {
+            const listContainer = document.getElementById('historyList');
+
+            if (!dataToRender || dataToRender.length === 0) {
+                listContainer.innerHTML = '<div style="text-align:center; color:#aaa; padding:2rem;">No recordings match your filters.</div>';
+                return;
+            }
+
+            listContainer.innerHTML = '';
+            
+            dataToRender.forEach((item) => {
+                const speciesSet = new Set((item.detections || []).map(d => d.species));
+                const uniqueCount = speciesSet.size;
+                
+                const dateObj = new Date(item.time);
+                const timeStr = dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const dateStr = dateObj.toLocaleDateString();
+
+                const el = document.createElement('div');
+                el.className = 'feed-item';
+                el.setAttribute('data-original-index', item.originalIndex);
+                el.onclick = () => selectVideo(item.originalIndex); 
+                el.innerHTML = `
+                    <div class="item-top">
+                        <span class="item-id">Capture #${item.id}</span>
+                        <span class="item-time">${timeStr}</span>
+                    </div>
+                    <div style="font-size:0.8rem; color:#888; margin-bottom:4px;">${dateStr}</div>
+                    <div class="item-tags">
+                        <span class="tag">${uniqueCount} Species</span>
+                        <span class="tag">${(item.detections || []).length} Events</span>
+                    </div>
+                `;
+                listContainer.appendChild(el);
+            });
+        }
+
+        function applyFilters() {
+            const speciesVal = document.getElementById('speciesFilter').value;
+            const dateVal = document.getElementById('dateFilter').value; 
+            const startVal = document.getElementById('startTimeFilter').value; 
+            const endVal = document.getElementById('endTimeFilter').value;     
+
+            const filteredData = currentHistoryData
+                .map((item, index) => ({...item, originalIndex: index}))
+                .filter(item => {
+                    // 1. Filter by Species
+                    if (speciesVal && !(item.detections || []).some(d => d.species === speciesVal)) {
+                        return false;
+                    }
+
+                    const itemDate = new Date(item.time);
+
+                    // 2. Filter by Date (comparing local YYYY-MM-DD)
+                    if (dateVal) {
+                        const offset = itemDate.getTimezoneOffset() * 60000;
+                        const localISODate = new Date(itemDate.getTime() - offset).toISOString().split('T')[0];
+                        if (localISODate !== dateVal) return false;
+                    }
+
+                    // 3. Filter by Time Range
+                    if (startVal || endVal) {
+                        const itemTimeStr = itemDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                        if (startVal && itemTimeStr < startVal) return false;
+                        if (endVal && itemTimeStr > endVal) return false;
+                    }
+
+                    return true;
+                });
+
+            renderHistoryList(filteredData);
+        }
+
+        function clearFilters() {
+            document.getElementById('speciesFilter').value = '';
+            document.getElementById('dateFilter').value = '';
+            document.getElementById('startTimeFilter').value = '';
+            document.getElementById('endTimeFilter').value = '';
+            
+            const dataWithIndices = currentHistoryData.map((item, index) => ({...item, originalIndex: index}));
+            renderHistoryList(dataWithIndices);
         }
 
         function selectVideo(index) {
             const data = currentHistoryData[index];
             if (!data) return;
 
-            // Highlight Feed Item
             document.querySelectorAll('.feed-item').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.feed-item')[index].classList.add('active');
+            const activeEl = document.querySelector(`.feed-item[data-original-index="${index}"]`);
+            if (activeEl) {
+                activeEl.classList.add('active');
+            }
 
-            // Toggle Views
             document.getElementById('welcomeState').style.display = 'none';
             document.getElementById('videoContent').style.display = 'block';
 
-            // Update Header
             document.getElementById('displayTitle').textContent = `Capture #${data.id}`;
             const dateObj = new Date(data.time);
             document.getElementById('displayMeta').textContent = `${dateObj.toDateString()} at ${dateObj.toLocaleTimeString()}`;
 
-            // Play Video
             const player = document.getElementById('mainPlayer');
             const cleanFilename = data.filename.replace('uploads/videos/', '');
             player.src = `${VIDEO_BASE_PATH}${cleanFilename}`; 
             player.load();
 
-            // Render Results
             renderResults(data.detections);
         }
 
-    function renderResults(detections) {
-    const container = document.getElementById('resultsGrid');
-    container.innerHTML = '';
+        function renderResults(detections) {
+            const container = document.getElementById('resultsGrid');
+            container.innerHTML = '';
 
-    // The backend now handles filtering. 
-    // If we receive data, we assume it is valid and ready to show.
-
-    if (!detections || detections.length === 0) {
-        container.innerHTML = '<div style="text-align:center; color:#aaa; padding:2rem;">No relevant detections found.</div>';
-        return;
-    }
-
-    // Group by Species
-    const bySpecies = {};
-    detections.forEach(d => {
-        if (!bySpecies[d.species]) bySpecies[d.species] = [];
-        bySpecies[d.species].push(d);
-    });
-    for (const [species, dets] of Object.entries(bySpecies)) {
-        dets.sort((a, b) => a.time - b.time);
-
-        const section = document.createElement('div');
-        section.className = 'species-group';
-        
-        let html = `
-            <div class="species-label">
-                ${species}
-                <span class="count-badge">${dets.length} events</span>
-            </div>
-            <div class="thumbs-row">
-        `;
-
-        dets.forEach(d => {
-            const timeLabel = formatTime(d.time);
-            const imgUrl = d.image_url ? (d.image_url.startsWith('/') ? d.image_url : '/' + d.image_url) : '';
-            
-            // Calculate Percentage
-            const rawConf = d.confidence || 0;
-            const confPercent = Math.round(rawConf * 100);
-
-            // --- DYNAMIC COLOR LOGIC ---
-            let confClass = 'conf-low'; // Default Red
-            if (rawConf > 0.85) {
-                confClass = 'conf-high'; // Green for > 85%
-            } else if (rawConf > 0.70) {
-                confClass = 'conf-med';  // Orange for 70-85%
+            if (!detections || detections.length === 0) {
+                container.innerHTML = '<div style="text-align:center; color:#aaa; padding:2rem;">No relevant detections found.</div>';
+                return;
             }
 
-            html += `
-                <div class="thumb-card">
-                    <img src="${imgUrl}" 
-                         class="thumb-img" 
-                         onclick="openModal('${imgUrl}')" 
-                         loading="lazy"
-                         onerror="this.onerror=null; this.src='https://placehold.co/150x100?text=No+Img';">
-                    <div class="thumb-meta">
-                        <button class="seek-btn" onclick="seekVideo(${d.time})">▶ ${timeLabel}</button>
-                        
-                        <span class="conf-badge ${confClass}">
-                            ${confPercent}% Match
-                        </span>
+            const bySpecies = {};
+            detections.forEach(d => {
+                if (!bySpecies[d.species]) bySpecies[d.species] = [];
+                bySpecies[d.species].push(d);
+            });
+            
+            for (const [species, dets] of Object.entries(bySpecies)) {
+                dets.sort((a, b) => a.time - b.time);
 
+                const section = document.createElement('div');
+                section.className = 'species-group';
+                
+                let html = `
+                    <div class="species-label">
+                        ${species}
+                        <span class="count-badge">${dets.length} events</span>
                     </div>
-                </div>
-            `;
-        });
+                    <div class="thumbs-row">
+                `;
 
-        html += `</div>`;
-        section.innerHTML = html;
-        container.appendChild(section);
-    }
-}
+                dets.forEach(d => {
+                    const timeLabel = formatTime(d.time);
+                    const imgUrl = d.image_url ? (d.image_url.startsWith('/') ? d.image_url : '/' + d.image_url) : '';
+                    
+                    const rawConf = d.confidence || 0;
+                    const confPercent = Math.round(rawConf * 100);
+
+                    let confClass = 'conf-low'; 
+                    if (rawConf > 0.85) {
+                        confClass = 'conf-high'; 
+                    } else if (rawConf > 0.70) {
+                        confClass = 'conf-med';  
+                    }
+
+                    html += `
+                        <div class="thumb-card">
+                            <img src="${imgUrl}" 
+                                 class="thumb-img" 
+                                 onclick="openModal('${imgUrl}')" 
+                                 loading="lazy"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/150x100?text=No+Img';">
+                            <div class="thumb-meta">
+                                <button class="seek-btn" onclick="seekVideo(${d.time})">▶ ${timeLabel}</button>
+                                
+                                <span class="conf-badge ${confClass}">
+                                    ${confPercent}% Match
+                                </span>
+
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+                section.innerHTML = html;
+                container.appendChild(section);
+            }
+        } // The extra stray bracket here was removed!
+
         function seekVideo(seconds) {
             const player = document.getElementById('mainPlayer');
             player.currentTime = seconds;
             player.play();
-            // Scroll to video top smoothly
             document.querySelector('.video-card-container').scrollIntoView({ behavior: 'smooth' });
         }
 
@@ -487,6 +599,7 @@
             document.getElementById('modalImg').src = url;
             document.getElementById('imageModal').classList.add('active');
         }
+        
         function closeModal() {
             document.getElementById('imageModal').classList.remove('active');
         }
