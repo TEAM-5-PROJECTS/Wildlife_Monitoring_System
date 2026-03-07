@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SpeciesNet - Research</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
     /* ========== GLOBAL & NAVIGATION (Shared) ========== */
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -100,7 +98,7 @@ body {
     opacity: 0; 
     transform: translateY(-15px); 
     transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1); 
-    margin: 0 0 0.5rem 0; 
+      margin: 2rem 0 0.5rem 0;
     line-height: 1.2; 
 }
 .hero-title.visible { opacity: 1; transform: translateY(0); }
@@ -198,33 +196,11 @@ body {
 /* Navigation Links */
 .back-link { position: absolute; top: 2rem; left: 2rem; font-size: 1.1rem; color: rgba(255, 255, 255, 0.7); text-decoration: none; cursor: pointer; transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 20; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3); }
 .back-link:hover { color: #fff; transform: translateX(-3px); }
-#scene2 .back-link, #scene3 .back-link, #scene5 .back-link, #scene6 .back-link { color: #888; text-shadow: none; }
-#scene2 .back-link:hover, #scene3 .back-link:hover, #scene5 .back-link:hover, #scene6 .back-link:hover { color: #1a1a1a; transform: translateX(-3px); }
+#scene2 .back-link, #scene3 .back-link, #scene5 .back-link, #scene-video .back-link { color: #888; text-shadow: none; }
+#scene2 .back-link:hover, #scene3 .back-link:hover, #scene5 .back-link:hover, #scene-video .back-link:hover { color: #1a1a1a; transform: translateX(-3px); }
 .fade-in { opacity: 0; transform: translateY(10px); transition: all 0.5s ease; }
 .fade-in.visible { opacity: 1; transform: translateY(0); }
-.dashboard-link { position: absolute; top: 2rem; right: 2rem; font-size: 1.1rem; color: #888; text-decoration: none; cursor: pointer; transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 20; }
-.dashboard-link:hover { color: #1a1a1a; transform: translateX(3px); }
 .scientific-name { font-size: 1.3rem; font-style: italic; color: #666; margin-top: 0.25rem; font-weight: 400; }
-
-/* Dashboard Styles */
-.dashboard-container { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; max-width: 900px; margin-top: 1.5rem; }
-.dashboard-stats { display: flex; gap: 1.5rem; justify-content: center; }
-.stat-card { background: white; padding: 1.5rem 2rem; border-radius: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); text-align: center; min-width: 140px; }
-.stat-value { font-size: 2.5rem; font-weight: 700; color: #1a1a1a; display: block; }
-.stat-label { font-size: 0.95rem; color: #888; margin-top: 0.25rem; display: block; }
-.map-container { width: 100%; height: 350px; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); }
-#species-map { width: 100%; height: 100%; }
-.sightings-list { background: white; padding: 1.5rem; border-radius: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); }
-.sightings-list h3 { font-size: 1.2rem; margin-bottom: 1rem; color: #1a1a1a; }
-.sighting-item { display: flex; align-items: center; gap: 1rem; padding: 0.75rem; border-bottom: 1px solid #eee; }
-.sighting-item:last-child { border-bottom: none; }
-.sighting-thumb { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; }
-.sighting-info { flex: 1; }
-.sighting-species { font-weight: 600; color: #1a1a1a; }
-.sighting-meta { font-size: 0.85rem; color: #888; }
-.no-sightings { text-align: center; color: #888; padding: 2rem; }
-.leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); }
-.leaflet-popup-content { margin: 12px 16px; }
 
 /* ========== VIDEO MODULE STYLES ========== */
 .video-control-panel {
@@ -391,8 +367,7 @@ video { width: 100%; display: block; max-height: 500px; }
     transform: translateY(-2px);
 }
 </style>
-    
-
+</head>
 <body>
 <div class="mode-selector">
     <a href="{{ url_for('index') }}" class="mode-link active">Research</a>
@@ -401,15 +376,15 @@ video { width: 100%; display: block; max-height: 500px; }
     <span class="divider">//</span>
     <a href="{{ url_for('amb82_analysis') }}" class="mode-link">Video Analysis</a>
     <span class="divider">//</span>
-    <a href="{{ url_for('analytics') }}" class="mode-link ">Analytics</a> 
+    <a href="{{ url_for('analytics') }}" class="mode-link">Analytics</a> 
+    <span class="divider">//</span>
+    <a href="{{ url_for('settings') }}" class="mode-link ">Settings</a> 
 </div>
-
-
 
 <div id="view-security">
     <div class="scene" id="scene1">
         <div class="hero-header">
-            <h1 class="hero-title" id="hero-title">Intelligent Wildlife Monitoring</h1>
+            <h1 class="hero-title" id="hero-title">Sentry Wildlife Monitoring</h1>
             <p class="hero-subtitle" id="hero-subtitle"></p>
         </div>
         <div class="scene1-content">
@@ -481,7 +456,6 @@ video { width: 100%; display: block; max-height: 500px; }
 
     <div class="scene hidden" id="scene5">
         <span class="back-link" id="back-from-result">← Start Over</span>
-        <span class="dashboard-link" id="goto-dashboard">📊 Dashboard →</span>
         <p class="medium-text" style="margin-top:0;">This is a</p>
         <img class="result-image" id="result-image" src="" alt="Uploaded animal">
         <h1 class="species-name" id="species-name">...</h1>
@@ -489,34 +463,6 @@ video { width: 100%; display: block; max-height: 500px; }
         <p class="confidence" id="confidence">...</p>
         <div class="btn-row">
             <button class="btn primary" id="btn-another">Try another</button>
-            <button class="btn secondary" id="btn-dashboard">View species map</button>
-        </div>
-    </div>
-
-    <div class="scene hidden" id="scene6">
-        <span class="back-link" id="back-from-dashboard">← Back</span>
-        <h1 class="big-text" id="dashboard-title">Species Sightings</h1>
-        <div class="dashboard-container">
-            <div class="dashboard-stats">
-                <div class="stat-card">
-                    <span class="stat-value" id="total-sightings">0</span>
-                    <span class="stat-label">Total Sightings</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-value" id="unique-species">0</span>
-                    <span class="stat-label">Species Detected</span>
-                </div>
-            </div>
-            <div class="map-container" id="map-container">
-                <div id="species-map"></div>
-            </div>
-            <div class="sightings-list" id="sightings-list">
-                <h3>Recent Sightings</h3>
-                <div id="sightings-items"></div>
-            </div>
-            <div class="debug-actions" style="margin-top: 1rem; text-align: center;">
-                <button class="btn secondary" id="btn-clear-sightings" style="font-size: 0.9rem; padding: 0.5rem 1rem;">🗑️ Clear All</button>
-            </div>
         </div>
     </div>
 
@@ -590,8 +536,6 @@ video { width: 100%; display: block; max-height: 500px; }
     let sortingAnimationInterval = null;
     let currentQueue = [];
     let userLocation = null;
-    let speciesMap = null;
-    const STORAGE_KEY = 'speciesnet_sightings_v2';
 
     // --- ANIMATION HELPERS ---
     function shuffleArray(array) {
@@ -729,7 +673,6 @@ video { width: 100%; display: block; max-height: 500px; }
         stopSortingAnimation();
         scenes.forEach(s => { s.classList.remove('active'); s.classList.add('hidden'); });
         
-        // Handle both ID string or Number
         let scene;
         if (typeof numOrId === 'string' && numOrId === 'video') {
              scene = document.getElementById('scene-video');
@@ -759,9 +702,7 @@ video { width: 100%; display: block; max-height: 500px; }
             setTimeout(() => document.getElementById('btn-go').classList.add('visible'), 800);
         } else if (numOrId === 3) {
             document.getElementById('file-input').value = '';
-        } else if (numOrId === 6) {
-            loadDashboard();
-        }
+        } 
     }
 
     function resetIntroAnimations() {
@@ -780,9 +721,6 @@ video { width: 100%; display: block; max-height: 500px; }
     document.getElementById('back-from-upload').onclick = () => { resetIntroAnimations(); showScene(1); };
     document.getElementById('btn-another').onclick = () => showScene(3);
     document.getElementById('back-from-result').onclick = () => { resetIntroAnimations(); showScene(1); };
-    document.getElementById('goto-dashboard').onclick = showDashboard;
-    document.getElementById('btn-dashboard').onclick = showDashboard;
-    document.getElementById('back-from-dashboard').onclick = () => showScene(5);
 
     // --- GEOLOCATION ---
     navigator.geolocation.getCurrentPosition(
@@ -829,28 +767,15 @@ video { width: 100%; display: block; max-height: 500px; }
                 const result = await response.json();
 
                 if (result.success) {
-                    // 🚀 NEW: If the backend drew a red box around a weapon, swap the image!
                     if (result.processed_image) {
                         document.getElementById('result-image').src = result.processed_image;
-                        base64Image = result.processed_image; // Updates the variable so the dashboard map gets the boxed version
+                        base64Image = result.processed_image; 
                     }
 
                     // 3. Update UI with Real Data
                     document.getElementById('species-name').textContent = result.species;
                     document.getElementById('scientific-name').textContent = result.scientific_name;
                     document.getElementById('confidence').textContent = Math.round((result.confidence || 0) * 100) + "% confidence";
-
-                    // 4. Save to LocalStorage for Dashboard
-                    const sightingData = {
-                        species: result.species,
-                        scientific_name: result.scientific_name,
-                        confidence: result.confidence,
-                        latitude: result.location?.latitude || userLocation?.latitude,
-                        longitude: result.location?.longitude || userLocation?.longitude,
-                        timestamp: new Date().toISOString(),
-                        //imageData: base64Image
-                    };
-                    saveSighting(sightingData);
 
                     showScene(5); // Show Result Scene
                 } else {
@@ -865,75 +790,6 @@ video { width: 100%; display: block; max-height: 500px; }
         };
         reader.readAsDataURL(file);
     }
-
-    // --- DASHBOARD LOGIC ---
-    function getSightings() {
-        try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } 
-        catch { return []; }
-    }
-
-    function saveSighting(sighting) {
-        const sightings = getSightings();
-        sightings.unshift(sighting);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(sightings.slice(0, 50)));
-    }
-
-    function clearAllSightings() {
-        localStorage.removeItem(STORAGE_KEY);
-        loadDashboard();
-    }
-
-    function getSpeciesColor(species) {
-        const colors = ['#e53935', '#d81b60', '#8e24aa', '#5e35b1', '#3949ab', '#1e88e5', '#039be5', '#00acc1', '#00897b', '#43a047', '#7cb342', '#c0ca33', '#fdd835', '#ffb300', '#fb8c00', '#f4511e'];
-        let hash = 0;
-        for (let i = 0; i < species.length; i++) hash = species.charCodeAt(i) + ((hash << 5) - hash);
-        return colors[Math.abs(hash) % colors.length];
-    }
-
-    function loadDashboard() {
-        const sightings = getSightings();
-        document.getElementById('total-sightings').textContent = sightings.length;
-        document.getElementById('unique-species').textContent = new Set(sightings.map(s => s.species)).size;
-
-        const listContainer = document.getElementById('sightings-items');
-        if (sightings.length === 0) {
-            listContainer.innerHTML = '<div class="no-sightings">No sightings yet. Upload a photo!</div>';
-        } else {
-            listContainer.innerHTML = sightings.slice(0, 10).map(s => `
-                <div class="sighting-item">
-                    <div class="sighting-info">
-                        <div class="sighting-species">${s.species}</div>
-                        <div class="sighting-meta">
-                            ${s.scientific_name ? `<i>${s.scientific_name}</i> · ` : ''}
-                            ${new Date(s.timestamp).toLocaleDateString()}
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // Map Logic
-        if (speciesMap) speciesMap.remove();
-        setTimeout(() => {
-            speciesMap = L.map('species-map').setView([20, 0], 2);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(speciesMap);
-            
-            const bounds = [];
-            sightings.forEach(s => {
-                if (s.latitude && s.longitude) {
-                    const color = getSpeciesColor(s.species);
-                    L.circleMarker([s.latitude, s.longitude], {
-                        radius: 10, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.8
-                    }).addTo(speciesMap).bindPopup(`<b>${s.species}</b><br>${new Date(s.timestamp).toLocaleDateString()}`);
-                    bounds.push([s.latitude, s.longitude]);
-                }
-            });
-            if (bounds.length > 0) speciesMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
-        }, 200);
-    }
-
-    function showDashboard() { showScene(6); loadDashboard(); }
-    document.getElementById('btn-clear-sightings').onclick = () => { if(confirm('Clear history?')) clearAllSightings(); };
 
     // Start
     setTimeout(() => { const firstGroup = speciesGroups[0].id; scrollToLane(firstGroup); }, 100);
