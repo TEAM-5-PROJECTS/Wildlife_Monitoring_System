@@ -28,7 +28,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 # AI Model imports
 from inference import get_model
-
+from flask_socketio import SocketIO
 # ==========================================
 # 1. INITIALIZATION & SETUP
 # ==========================================
@@ -39,11 +39,17 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 ROBOFLOW_API_KEY = os.getenv('ROBOFLOW_API_KEY')
 
-# --- Trackers to prevent notification spam ---
+# --- Dynamic Application Settings (Defaults) ---
+APP_CONFIG = {
+    "sensor_cooldown": 5,                # Wait 5 seconds before repeating sensor alerts
+    "weapon_confidence_threshold": 0.30, # Minimum confidence for weapon detection
+    "species_confidence_threshold": 0.55, # Minimum confidence for wildlife in video smart filter
+    "time_gap_threshold": 5,          # Spam prevention gap per species in video processing
+    "esp_timeout": 60              #esp32 disconect time
+}
+
+# Trackers to prevent notification spam
 sensor_alert_history = {"motion": 0, "tilt": 0, "gunshot": 0}
-SENSOR_COOLDOWN = 5  # Wait 5 seconds before repeating sensor alerts
-# confidence
-WEAPON_CONFIDENCE_THRESHOLD = 0.30
 # --- Define Folder Paths ---
 BASE_DIR = os.getcwd()
 MODEL_FOLDER = os.path.join(BASE_DIR, "speciesnet_model")
@@ -65,7 +71,8 @@ for folder in [DETECTIONS_DIR, VIDEO_DIR, TEMP_DIR, UPLOAD_DIR, os.path.join(BAS
 # Initialize the Flask Web App
 app = Flask(__name__)
 CORS(app) # Allows front-end to talk to back-end easily
-
+# Initialize WebSockets for real-time dashboard updates
+socketio = SocketIO(app, cors_allowed_origins="*")
 # Detect if we have a GPU available
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -341,7 +348,7 @@ class BatchVideoProcessor:
                                 print(f"👤 Human spotted at {time_sec:.1f}s. Running Weapon Scan on CPU...")
                                 
                                 # Run inference on the Intel i5 CPU
-                                weapon_res = self.model_manager.weapon_model.infer(img,confidence=WEAPON_CONFIDENCE_THRESHOLD)
+                                weapon_res = self.model_manager.weapon_model.infer(img,confidence=APP_CONFIG["weapon_confidence_threshold"])
                                 
                                 # If weapon found...
                                 if len(weapon_res[0].predictions) > 0:
@@ -448,13 +455,22 @@ def on_mqtt_message(client, userdata, msg):
                 last_status[k] = data[k]
                 if k == "gunshot" and data[k] == 1: 
                     gunshot_timestamp = current_time
+        # --- NEW: BROADCAST TO WEBSOCKETS ---
+        # Push the updated status to the frontend instantly
+        with app.app_context():
+            socketio.emit('sensor_update', {
+                **last_status,
+                "esp_online": True,
+                "gunshot": 1 if (current_time - gunshot_timestamp) < 5 else 0,
+                "model_loaded": model_manager.model is not None
+            })
 
         # Sensor-specific logic and logging
         if msg.topic == "security/events":
             
             # 1. MOTION
             if data.get('motion') == 1:
-                if (current_time - sensor_alert_history['motion']) > SENSOR_COOLDOWN:
+                if (current_time - sensor_alert_history['motion']) > APP_CONFIG["sensor_cooldown"]:
                     msg_text = f"🏃 *MOTION DETECTED* 🏃\n\n⏱️ *Time:* {datetime.now().strftime('%H:%M:%S')}\n📍 *Unit:* Field Cam 01"
                     Thread(target=send_telegram_alert, args=(msg_text,)).start()
                     log_event_to_db("motion") # Save to DB
@@ -463,7 +479,7 @@ def on_mqtt_message(client, userdata, msg):
             # 2. TILT
             tilt_val = data.get('tilt', 0.0)
             if tilt_val > 30: # If camera falls off tree
-                if (current_time - sensor_alert_history['tilt']) > SENSOR_COOLDOWN:
+                if (current_time - sensor_alert_history['tilt']) > APP_CONFIG["sensor_cooldown"]:
                     msg_text = f"⚠️ *DEVICE TILT WARNING* ⚠️\n\n📉 *Angle:* {tilt_val}°\n📍 *Unit:* Field Cam 01\nCheck mounting immediately."
                     Thread(target=send_telegram_alert, args=(msg_text,)).start()
                     log_event_to_db("tilt", tilt_val) # Save to DB with angle
@@ -511,9 +527,9 @@ def handle_amb82_video(video_file, sample_fps=1, min_conf=0.5, country='IND', ro
         # ==========================================
         # 🚀 THE "SMART FILTER" PIPELINE
         # ==========================================
-        CONFIDENCE_THRESHOLD = 0.55
-        TIME_GAP_THRESHOLD = 5
-
+        CONFIDENCE_THRESHOLD = APP_CONFIG["species_confidence_threshold"]
+        TIME_GAP_THRESHOLD = APP_CONFIG["time_gap_threshold"]
+        
         clean_detections = []
         last_seen_dict = {}
 
@@ -568,6 +584,8 @@ def analytics(): return render_template('analytics.html')
 
 @app.route('/test')
 def simple_test(): return render_template('simple_test.html')
+@app.route('/settings')
+def settings(): return render_template('settings.html')
 
 @app.route('/api/detect', methods=['POST'])
 def detect():
@@ -645,7 +663,7 @@ def detect():
                     
                     try:
                         # Run Weapon Model on Intel i5
-                        weapon_res = model_manager.weapon_model.infer(img,confidence=WEAPON_CONFIDENCE_THRESHOLD)
+                        weapon_res = model_manager.weapon_model.infer(img,confidence=APP_CONFIG["weapon_confidence_threshold"])
                         
                         # Debug Print 2: See how many weapons the CPU found
                         print(f"🎯 Weapon scan complete. Found {len(weapon_res[0].predictions)} threats.")
@@ -690,16 +708,29 @@ def detect():
         traceback.print_exc()
         return jsonify(success=False, error=str(e)), 500
 
-@app.route('/status')
-def status():
-    """Endpoint for web dashboard to poll live sensor data."""
+# ==========================================
+# 6. WEBSOCKET EVENTS (Real-Time Dashboard)
+# ==========================================
+
+@socketio.on('connect')
+def handle_connect():
+    """
+    Fires the moment a user opens the web dashboard.
+    Sends the current hardware state immediately so the UI doesn't load empty.
+    """
     t = time.time()
-    return jsonify({
+    current_status = {
         **last_status,
-        "esp_online": (t - last_seen) < 62, # Heartbeat check
+        "esp_online": (t - last_seen) < APP_CONFIG["esp_timeout"], 
         "gunshot": 1 if (t - gunshot_timestamp) < 5 else 0,
         "model_loaded": model_manager.model is not None
-    })
+    }
+    socketio.emit('sensor_update', current_status)
+    print("🟢 Web client connected to real-time dashboard.")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print("🔴 Web client disconnected.")
 
 @app.route('/api/video/upload', methods=['POST'])
 def upload_video():
@@ -789,10 +820,66 @@ def send_command():
         return jsonify({"success": False, "error": "No command provided"}), 400
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+    #setting cahnge from ui
+@app.route('/api/settings', methods=['GET'])
+def get_settings():
+    """Returns the current dynamic settings to the frontend."""
+    return jsonify({"success": True, "settings": APP_CONFIG})
 
+@app.route('/api/settings', methods=['POST'])
+def update_settings():
+    """Allows the frontend to update the dynamic settings."""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"}), 400
+
+        # Loop through incoming data and update the config if the key exists
+        for key, value in data.items():
+            if key in APP_CONFIG:
+                # Ensure we maintain the correct data type (float vs int)
+                if isinstance(APP_CONFIG[key], float):
+                    APP_CONFIG[key] = float(value)
+                elif isinstance(APP_CONFIG[key], int):
+                    APP_CONFIG[key] = int(value)
+        
+        print(f"⚙️ Settings updated via API: {APP_CONFIG}")
+        return jsonify({"success": True, "settings": APP_CONFIG})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+# --- ESP32 WATCHDOG MONITOR ---
+def watchdog_monitor():
+    """Continuously checks if the ESP32 timed out and forces the UI offline if it did."""
+    global last_seen
+    esp_was_online = False # Start by assuming offline
+    
+    while True:
+        time.sleep(5) # Wake up and check every 5 seconds
+        current_time = time.time()
+        
+        # Check if we have heard from the ESP32 in the last n seconds
+        is_online = (current_time - last_seen) < APP_CONFIG["esp_timeout"] and last_seen != 0
+        
+        # If the state changed (it just went offline, or just came back online)
+        if is_online != esp_was_online:
+            esp_was_online = is_online
+            print(f"📡 Watchdog: ESP32 is now {'ONLINE' if is_online else 'OFFLINE'}")
+            
+            # Force a WebSocket push to the UI to update the connection cards
+            try:
+                with app.app_context():
+                    socketio.emit('sensor_update', {
+                        **last_status,
+                        "esp_online": is_online,
+                        "gunshot": 1 if (current_time - gunshot_timestamp) < 5 else 0,
+                        "model_loaded": model_manager.model is not None
+                    })
+            except Exception as e:
+                pass
 # ==========================================
 # 6. MAIN SERVER EXECUTION
 # ==========================================
+
 if __name__ == '__main__':
     print("\n🚀 STARTING WILDLIFE SERVER (LOCAL ONLY) 🚀\n")
     
@@ -809,11 +896,12 @@ if __name__ == '__main__':
         mqtt_client.loop_start() 
     except Exception as e:
         print(f"⚠️ Could not connect to MQTT Broker. Is Mosquitto running? Error: {e}")
-
+# Start the Watchdog Monitor in the background
+    Thread(target=watchdog_monitor, daemon=True).start()
     print(f"\n{'='*60}")
     print(f"🌐 LOCAL URL: http://127.0.0.1:5000")
    # print(f"🌐 TEST URL:  http://127.0.0.1:5000/test")
     print(f"{'='*60}\n")
-    
-    # 3. Start the Flask web server
-    app.run(host='0.0.0.0', port=5000, debug=True, threaded=False)
+
+ # 3. Start the Flask & WebSocket server
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False)
