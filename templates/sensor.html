@@ -8,152 +8,246 @@
     
     <style>
        /* ========== GLOBAL & NAVIGATION (Shared) ========== */
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { 
-    font-family: 'Space Grotesk', sans-serif; 
-    background: #f8f6f1; 
-    min-height: 100vh; 
-    overflow-x: hidden; 
-}
-.hidden { display: none !important; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Space Grotesk', sans-serif; 
+            background: #f8f6f1; 
+            min-height: 100vh; 
+            overflow-x: hidden; 
+        }
+        .hidden { display: none !important; }
 
-/* Navigation */
-.mode-selector {
-        position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
-        z-index: 10000; display: flex; align-items: center; gap: 15px;
-        padding-bottom: 10px; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.15em;
-        text-transform: uppercase; mix-blend-mode: multiply; background: rgba(248, 246, 241, 0.9); padding: 10px 20px; border-radius: 50px;
-    }
-.mode-link {
-    background: none; border: none; padding: 0; margin: 0; cursor: pointer;
-    font-family: inherit; font-size: inherit; font-weight: inherit;
-    letter-spacing: inherit; text-transform: inherit; outline: none;
-    color: #b0b0b0; transition: all 0.4s ease; position: relative;
-    text-decoration: none;
-}
-.mode-link:hover { color: #666; }
-.mode-link.active { color: #1a1a1a; transform: scale(1.05); }
-.mode-link.active::after {
-    content: ''; position: absolute; bottom: -6px; left: 50%;
-    transform: translateX(-50%); width: 4px; height: 4px;
-    background: #e53935; border-radius: 50%;
-}
-.divider { color: #ddd; font-weight: 400; user-select: none; }
+        /* Navigation */
+        .mode-selector {
+            position: fixed; top: 30px; left: 50%; transform: translateX(-50%);
+            z-index: 10000; display: flex; align-items: center; gap: 15px;
+            padding-bottom: 10px; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.15em;
+            text-transform: uppercase; mix-blend-mode: multiply; background: rgba(248, 246, 241, 0.9); padding: 10px 20px; border-radius: 50px;
+        }
+        .mode-link {
+            background: none; border: none; padding: 0; margin: 0; cursor: pointer;
+            font-family: inherit; font-size: inherit; font-weight: inherit;
+            letter-spacing: inherit; text-transform: inherit; outline: none;
+            color: #b0b0b0; transition: all 0.4s ease; position: relative;
+            text-decoration: none;
+        }
+        .mode-link:hover { color: #666; }
+        .mode-link.active { color: #1a1a1a; transform: scale(1.05); }
+        .mode-link.active::after {
+            content: ''; position: absolute; bottom: -6px; left: 50%;
+            transform: translateX(-50%); width: 4px; height: 4px;
+            background: #e53935; border-radius: 50%;
+        }
+        .divider { color: #ddd; font-weight: 400; user-select: none; }
 
-/* ========== SENSOR DASHBOARD LAYOUT ========== */
-/* Main Wrapper */
-#view-research {
-    font-family: 'Space Grotesk', sans-serif;
-    background: #f8f6f1;
-    color: #1a1a1a;
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden;
-    padding: 80px 1.5vw 1.5vh 1.5vw;
-    display: flex;
-    justify-content: center;
-}
+        /* ========== SENSOR DASHBOARD LAYOUT ========== */
+        #view-research {
+            font-family: 'Space Grotesk', sans-serif;
+            background: #f8f6f1;
+            color: #1a1a1a;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            padding: 80px 1.5vw 1.5vh 1.5vw;
+            display: flex;
+            justify-content: center;
+        }
 
-.dashboard-wrapper {
-    width: 100%;
-    max-width: 1400px;
-    height: 100%;
-    display: grid;
-    grid-template-columns: 2.2fr 1fr;
-    gap: 1rem;
-    opacity: 0;
-    animation: fadeIn 0.8s ease-out forwards;
-}
+        .dashboard-wrapper {
+            width: 100%;
+            max-width: 1500px;
+            height: 100%;
+            display: grid;
+            grid-template-columns: 2.5fr 1fr;
+            gap: 1.5rem;
+            opacity: 0;
+            animation: fadeIn 0.8s ease-out forwards;
+        }
 
-@keyframes fadeIn { to { opacity: 1; } }
+        @keyframes fadeIn { to { opacity: 1; } }
 
-/* Left Panel */
-.sensor-panel { display: flex; flex-direction: column; gap: 1rem; height: 100%; }
-.header-area { display: flex; justify-content: space-between; align-items: center; background: white; padding: 0.8rem 1.2rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); flex-shrink: 0; }
-.brand h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
-.brand p { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px; }
-.global-status { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 700; color: #555; background: #f8f6f1; padding: 0.4rem 0.8rem; border-radius: 50px; }
-
-/* Sensor Grid */
-.sensor-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr 0.9fr; gap: 0.8rem; flex: 1; min-height: 0; }
-.card { background: white; border-radius: 12px; padding: 1.2rem; border: 2px solid transparent; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; }
-.card-header { display: flex; justify-content: space-between; align-items: start; }
-.card-icon { font-size: 1.6rem; background: #f8f6f1; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 10px; }
-.card-label { font-size: 0.75rem; text-transform: uppercase; color: #888; font-weight: 700; letter-spacing: 0.05em; }
-.card-main { margin-top: auto; }
-.card-value { font-size: 2rem; font-weight: 700; line-height: 1.1; color: #1a1a1a; }
-.card-meta { font-size: 0.8rem; color: #666; margin-top: 0.2rem; }
-.card.full-width { grid-column: span 2; flex-direction: row; align-items: center; }
-.card.full-width .card-header { margin-right: 2rem; align-items: center; gap: 1rem; }
-.card.full-width .card-main { margin-top: 0; }
-.card.full-width .card-value { font-size: 2.5rem; }
-
-/* Right Panel (Logs) */
-.log-panel { background: white; border-radius: 12px; padding: 1.2rem; display: flex; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.04); height: 100%; overflow: hidden; }
-.log-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.8rem; display: flex; justify-content: space-between; align-items: center; }
-.live-indicator { font-size: 0.7rem; color: #e53935; animation: blink 2s infinite; font-weight: 700; }
-@keyframes blink { 50% { opacity: 0.5; } }
-.log-feed { flex: 1; overflow-y: auto; padding-right: 5px; display: flex; flex-direction: column; gap: 0.6rem; }
-.log-entry { padding: 0.6rem; background: #fcfcfc; border-radius: 6px; border-left: 3px solid #ddd; font-size: 0.85rem; animation: slideInLeft 0.3s ease-out; }
-@keyframes slideInLeft { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
-.log-time { display: block; font-size: 0.7rem; color: #999; margin-bottom: 2px; font-family: monospace; }
-.log-msg { font-weight: 600; color: #333; line-height: 1.3; }
-
-/* Sensor Status Colors */
-.status-ok { border-color: #43a047; } .status-ok .card-value { color: #43a047; }
-.status-warn { border-color: #fb8c00; background: #fffbf0; } .status-warn .card-value { color: #e65100; }
-.status-danger { border-color: #e53935; background: #fff5f5; } .status-danger .card-value { color: #c62828; }
-.status-offline { border-color: #90a4ae; opacity: 0.8; background: #f5f5f5; }
-.log-ok { border-left-color: #43a047; }
-.log-warn { border-left-color: #fb8c00; background: #fffcf0; }
-.log-danger { border-left-color: #e53935; background: #fff5f5; }
-
-.dot { width: 8px; height: 8px; background: #ccc; border-radius: 50%; position: relative; }
-.dot.active::after { content:''; position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:100%; height:100%; border:2px solid currentColor; border-radius:50%; animation: pulse 1.5s infinite; }
-@keyframes pulse { 0% { transform:translate(-50%,-50%) scale(0.8); opacity:0.8; } 100% { transform:translate(-50%,-50%) scale(2.5); opacity:0; } }
-  /* ========== WAKE BUTTON STYLES ========== */
-.btn-wake {
-    padding: 8px 20px;
-    background: #1a1a1a;
-    color: #fff;
-    border: 2px solid #1a1a1a;
-    border-radius: 50px;
-    font-family: inherit;
-    font-weight: 700;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    outline: none;
-}
-
-/* When the mouse is over it */
-.btn-wake:hover {
-    background: #333;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(0,0,0,0.15);
-}
-
-/* When you physically click and hold the mouse button down */
-.btn-wake:active {
-    transform: translateY(2px) scale(0.95);
-    box-shadow: inset 0 4px 8px rgba(0,0,0,0.4);
-    background: #000;
-}
-
-/* For when it is waiting for the backend */
-.btn-wake.loading {
-    background: #666;
-    border-color: #666;
-    pointer-events: none; /* Prevents double-clicking */
-    transform: none;
-    box-shadow: none;
-}  
-</style>
+        /* Left Panel */
      
+.sensor-panel { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 1.2rem; 
+    height: 100%; 
+    overflow-y: auto;      /* This is the magic line that enables scrolling */
+    padding-right: 10px;   /* Adds a tiny gap so the scrollbar doesn't touch the cards */
+    padding-bottom: 20px;  /* Ensures the bottom card isn't glued to the edge of the screen */
+}
+
+/* Make the scrollbar look modern, invisible until needed */
+.sensor-panel::-webkit-scrollbar {
+    width: 6px;
+}
+.sensor-panel::-webkit-scrollbar-track {
+    background: transparent; 
+}
+.sensor-panel::-webkit-scrollbar-thumb {
+    background-color: #d1d1d1; 
+    border-radius: 10px;
+}
+.sensor-panel::-webkit-scrollbar-thumb:hover {
+    background-color: #a8a8a8;
+}
+        
+        /* Command Center Header */
+        .header-area { display: flex; justify-content: space-between; align-items: center; background: white; padding: 0.8rem 1.2rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); flex-shrink: 0; }
+        .brand h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+        .brand p { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px; }
+        .global-status { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 700; color: #555; background: #f8f6f1; padding: 0.4rem 0.8rem; border-radius: 50px; }
+
+        /* --- NEW NODE LAYOUT --- */
+        .node-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            flex: 1;
+        }
+
+        /* Node Header Inline Layout */
+        .node-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .node-title-area {
+            display: flex;
+            align-items: stretch;
+            gap: 12px;
+        }
+
+        .node-indicator-bar {
+            width: 4px;
+            background: #e53935;
+            border-radius: 4px;
+        }
+
+        .node-titles h2 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #1a1a1a;
+            margin-bottom: 6px;
+        }
+
+        .node-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85rem;
+            color: #888;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .node-stats strong {
+            color: #333;
+        }
+
+        .node-status-dot {
+            width: 12px;
+            height: 12px;
+            background: #ccc;
+            border-radius: 50%;
+            margin-top: 5px;
+            box-shadow: 0 0 0 rgba(0,0,0,0);
+            transition: all 0.3s ease;
+        }
+
+        /* 3-Column Sensor Grid */
+        .sensor-grid-row { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); /* Changed to 3 columns to perfectly fit the remaining cards */
+            gap: 1rem; 
+            flex: 1;
+        }
+
+        .card { 
+            background: #fdfdfd; 
+            border-radius: 10px; 
+            padding: 1.5rem; 
+            border: 2px solid #eaeaea; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .card-label { 
+            font-size: 0.8rem; 
+            text-transform: uppercase; 
+            color: #888; 
+            font-weight: 700; 
+            letter-spacing: 0.05em; 
+            margin-bottom: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .card-icon { font-size: 1.4rem; }
+        .card-value { font-size: 2.2rem; font-weight: 700; line-height: 1; color: #1a1a1a; }
+
+        /* Right Panel (Logs) */
+        .log-panel { background: white; border-radius: 12px; padding: 1.2rem; display: flex; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.04); height: 100%; overflow: hidden; }
+        .log-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.8rem; display: flex; justify-content: space-between; align-items: center; }
+        .live-indicator { font-size: 0.7rem; color: #e53935; animation: blink 2s infinite; font-weight: 700; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+        .log-feed { flex: 1; overflow-y: auto; padding-right: 5px; display: flex; flex-direction: column; gap: 0.6rem; }
+        .log-entry { padding: 0.6rem; background: #fcfcfc; border-radius: 6px; border-left: 3px solid #ddd; font-size: 0.85rem; animation: slideInLeft 0.3s ease-out; }
+        @keyframes slideInLeft { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
+        .log-time { display: block; font-size: 0.7rem; color: #999; margin-bottom: 2px; font-family: monospace; }
+        .log-msg { font-weight: 600; color: #333; line-height: 1.3; }
+
+        /* Sensor Status Colors */
+        .status-ok { border-color: #43a047; background: #f4fbf5;} .status-ok .card-value { color: #43a047; }
+        .status-warn { border-color: #fb8c00; background: #fffbf0; } .status-warn .card-value { color: #e65100; }
+        .status-danger { border-color: #e53935; background: #fff5f5; } .status-danger .card-value { color: #c62828; }
+        .status-offline { border-color: #90a4ae; opacity: 0.8; background: #f5f5f5; }
+        .log-ok { border-left-color: #43a047; }
+        .log-warn { border-left-color: #fb8c00; background: #fffcf0; }
+        .log-danger { border-left-color: #e53935; background: #fff5f5; }
+
+        .dot { width: 8px; height: 8px; background: #ccc; border-radius: 50%; position: relative; }
+        .dot.active::after { content:''; position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:100%; height:100%; border:2px solid currentColor; border-radius:50%; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform:translate(-50%,-50%) scale(0.8); opacity:0.8; } 100% { transform:translate(-50%,-50%) scale(2.5); opacity:0; } }
+        
+        /* ========== WAKE BUTTON STYLES ========== */
+        .btn-wake {
+            padding: 8px 20px;
+            background: #1a1a1a;
+            color: #fff;
+            border: 2px solid #1a1a1a;
+            border-radius: 50px;
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            outline: none;
+        }
+        .btn-wake:hover { background: #333; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.15); }
+        .btn-wake:active { transform: translateY(2px) scale(0.95); box-shadow: inset 0 4px 8px rgba(0,0,0,0.4); background: #000; }
+        .btn-wake.loading { background: #666; border-color: #666; pointer-events: none; transform: none; box-shadow: none; }  
+    </style>
 </head>
 
 <body>
@@ -170,12 +264,11 @@ body {
     <a href="{{ url_for('settings') }}" class="mode-link ">Settings</a> 
 </div>
 
-
 <div id="view-research">
     <div class="dashboard-wrapper">
         
         <div class="sensor-panel">
-<div class="header-area">
+            <div class="header-area">
                 <div class="brand">
                     <h1>SentryNet</h1>
                     <p>Command Center</p>
@@ -191,65 +284,74 @@ body {
                 </div>
             </div>
 
-            <div class="sensor-grid">
-                
-                <div id="espBox" class="card">
-                    <div class="card-header">
-                        <div class="card-icon">📡</div>
-                        <span class="card-label">Link Status</span>
-                    </div>
-                    <div class="card-main">
-                        <div class="card-value">...</div>
-                        <div class="card-meta">ESP32 Device</div>
-                    </div>
-                </div>
-
-                <div id="sysBox" class="card">
-                    <div class="card-header">
-                        <div class="card-icon">⚙️</div>
-                        <span class="card-label">Health</span>
-                    </div>
-                    <div class="card-main">
-                        <div class="card-value">--</div>
-                        <div class="card-meta">WiFi RSSI</div>
-                    </div>
-                </div>
-
-                <div id="tiltBox" class="card">
-                    <div class="card-header">
-                        <div class="card-icon">📐</div>
-                        <span class="card-label">Gyroscope</span>
-                    </div>
-                    <div class="card-main">
-                        <div class="card-value">--°</div>
-                        <div class="card-meta">Stable</div>
-                    </div>
-                </div>
-
-                <div id="motionBox" class="card">
-                    <div class="card-header">
-                        <div class="card-icon">🏃</div>
-                        <span class="card-label">Perimeter</span>
-                    </div>
-                    <div class="card-main">
-                        <div class="card-value">Clear</div>
-                        <div class="card-meta">No activity</div>
-                    </div>
-                </div>
-
-                <div id="gunshotBox" class="card full-width">
-                    <div class="card-header">
-                        <div class="card-icon" style="background: #ffebee; color: #c62828;">🛡️</div>
-                        <div>
-                            <span class="card-label">Acoustic Sensor</span>
-                            <div class="card-meta">Monitoring decibel levels</div>
+           <div class="node-container">
+                <div class="node-header">
+                    <div class="node-title-area">
+                        <div class="node-indicator-bar" id="node-bar-main"></div>
+                        <div class="node-titles">
+                            <h2>NODE 0: Main unit</h2>
+                            <div class="node-stats">
+                                <span>LINK: <strong id="val-link-main">WAITING</strong></span>
+                                <span>RSSI: <strong id="val-rssi-main">--</strong></span>
+                                <span>TEMP: <strong id="val-temp-main">--</strong></span>
+                            </div>
                         </div>
                     </div>
-                    <div class="card-main">
-                        <div class="card-value">Safe</div>
+                    <div class="node-status-dot" id="node-dot-main"></div>
+                </div>
+
+                <div class="sensor-grid-row">
+                    <div id="tiltBox-main" class="card">
+                        <div class="card-label"><span class="card-icon">📐</span> TILT</div>
+                        <div class="card-value">--°</div>
+                    </div>
+                    <div id="motionBox-main" class="card">
+                        <div class="card-label"><span class="card-icon">🏃</span> PIR MOTION</div>
+                        <div class="card-value">--</div>
+                    </div>
+                    <div id="gunshotBox-main" class="card">
+                        <div class="card-label"><span class="card-icon" style="color: #c62828;">🛡️</span> ACOUSTIC</div>
+                        <div class="card-value">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="node-container">
+                <div class="node-header">
+                    <div class="node-title-area">
+                        <div class="node-indicator-bar" id="node-bar-node1"></div>
+                        <div class="node-titles">
+                            <h2>NODE 1</h2>
+                            <div class="node-stats">
+                                <span>LINK: <strong id="val-link-node1">WAITING</strong></span>
+                                <span>RSSI: <strong id="val-rssi-node1">--</strong></span>
+                                <span>TEMP: <strong id="val-temp-node1">--</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <button id="linkToggleBtn" class="btn-wake" onclick="toggleNodeLink()" style="background: #546e7a; border-color: #546e7a; font-size: 0.75rem; padding: 6px 12px;">
+                            <span>🔗</span> Link to Main: OFF
+                        </button>
+                        <div class="node-status-dot" id="node-dot-node1"></div>
                     </div>
                 </div>
 
+                <div class="sensor-grid-row">
+                    <div id="envBox-node1" class="card">
+                        <div class="card-label"><span class="card-icon">🌡️</span> CLIMATE</div>
+                        <div class="card-value" style="font-size: 1.7rem;">-- / --</div>
+                    </div>
+                    <div id="motionBox-node1" class="card">
+                        <div class="card-label"><span class="card-icon">🏃</span> PIR MOTION</div>
+                        <div class="card-value">--</div>
+                    </div>
+                    <div id="gunshotBox-node1" class="card">
+                        <div class="card-label"><span class="card-icon" style="color: #c62828;">🛡️</span> ACOUSTIC</div>
+                        <div class="card-value">--</div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -268,35 +370,28 @@ body {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 
 <script>
+   // ==========================================
+    // SENSOR LOGIC (MULTI-NODE)
     // ==========================================
-    // SENSOR LOGIC
-    // ==========================================
-    // State Tracking
-    let lastOnlineState = null;
-    let lastGunshot = 0;
-    let lastMotion = 0;
-    let lastTiltHigh = false;
-
+    
+    // Memory tracker for all our different cameras
+// Memory tracker for all our different cameras
+    const fleetMemory = {
+        "main": { online: null, gunshot: 0, motion: 0, tiltHigh: false, gunshotTimer: null },
+        "node1": { online: null, gunshot: 0, motion: 0, tiltHigh: false, gunshotTimer: null }
+    };
     // --- UI Helpers ---
-    function updateCard(id, state, value, meta) {
+    function updateCard(id, state, value) {
         const card = document.getElementById(id);
-        if (!card) return; // Safety check
+        if (!card) return; 
 
         const valEl = card.querySelector('.card-value');
-        const metaEl = card.querySelector('.card-meta');
-        
-        // Reset classes
         card.classList.remove('status-ok', 'status-warn', 'status-danger', 'status-offline');
-        
-        // Add new status class
         if(state) card.classList.add(`status-${state}`);
-        
-        // Update Text
         if(valEl) valEl.textContent = value;
-        if(metaEl) metaEl.textContent = meta;
     }
-        //log function for events
-function addLog(msg, type, customTime = null) {
+    
+    function addLog(msg, type, customTime = null) {
         const feed = document.getElementById('log-feed');
         if (!feed) return;
 
@@ -304,8 +399,6 @@ function addLog(msg, type, customTime = null) {
         div.className = `log-entry log-${type}`;
         
         const dateObj = customTime ? new Date(customTime) : new Date();
-        
-        // Force the browser to get the Date and Time separately
         const dateStr = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
         const timeStr = dateObj.toLocaleTimeString('en-US', { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
         
@@ -317,97 +410,142 @@ function addLog(msg, type, customTime = null) {
         feed.prepend(div);
         if(feed.children.length > 50) feed.lastElementChild.remove();
     }
+
     // --- Main Update Loop ---
     function processLiveData(data) {
         try {
-            const dot = document.getElementById('global-dot');
-            const gText = document.getElementById('global-text');
+            // Figure out which node is talking, default to "main" if it's missing somehow
+            const nId = data.node_id || "main"; 
+            
+            // If we don't know this node yet, create a memory slot for it
+            if (!fleetMemory[nId]) {
+                fleetMemory[nId] = { online: null, gunshot: 0, motion: 0, tiltHigh: false };
+            }
+            const nodeMem = fleetMemory[nId];
 
-            // 1. Connection Logic
+            // Global DOM Elements
+            const globalDot = document.getElementById('global-dot');
+            const gText = document.getElementById('global-text');
+            
+            // Node-Specific DOM Elements (Dynamically grabbed using the nId)
+            const nodeBar = document.getElementById(`node-bar-${nId}`);
+            const nodeDot = document.getElementById(`node-dot-${nId}`);
+            const valLink = document.getElementById(`val-link-${nId}`);
+            const valRssi = document.getElementById(`val-rssi-${nId}`);
+            const valTemp = document.getElementById(`val-temp-${nId}`);
+
+            const nodePrefix = `[${nId.toUpperCase()}]`;
+
+            // 1. Connection Logic & Header Data
             if (data.esp_online) {
-                // If we just came back online
-                if (lastOnlineState === false) addLog("Connection restored", "ok");
-                lastOnlineState = true;
+                if (nodeMem.online === false) addLog(`${nodePrefix} Connection restored`, "ok");
+                nodeMem.online = true;
                 
-                updateCard('espBox', 'ok', 'Connected', 'Ping: <10ms');
-                
-                // Global Status Green
-                dot.style.backgroundColor = '#00e676'; 
-                dot.style.boxShadow = '0 0 10px #00e676';
+                // Global Header Updates (Green if at least this one is connected)
+                globalDot.style.backgroundColor = '#00e676'; 
+                globalDot.style.boxShadow = '0 0 10px #00e676';
                 gText.textContent = "System Nominal"; 
                 gText.style.color = '#00e676';
 
-                // 2. Health (RSSI & Temp)
+                // Node Header Updates
+                if(nodeBar) nodeBar.style.backgroundColor = '#00e676';
+                if(nodeDot) { nodeDot.style.backgroundColor = '#00e676'; nodeDot.style.boxShadow = '0 0 10px #00e676'; }
+                if(valLink) { valLink.textContent = "STABLE"; valLink.style.color = "#00e676"; }
+                
                 const temp = (data.temp !== null && data.temp !== undefined) ? Number(data.temp).toFixed(1) + "°C" : "--";
-                const rssi = (data.rssi !== null && data.rssi !== undefined) ? data.rssi + " dBm" : "--";
-                updateCard('sysBox', 'ok', rssi, `Temp: ${temp}`);
-
-                // 3. Tilt Sensor
+                const rssi = (data.rssi !== null && data.rssi !== undefined) ? data.rssi + "dBm" : "--";
+                if(valRssi) valRssi.textContent = rssi;
+                if(valTemp) valTemp.textContent = temp;
+                // --- NEW: CLIMATE CARD FOR NODE 1 ---
+                if (nId === "node1") {
+                    const dhtTemp = (data.dht_temp !== null && data.dht_temp !== undefined) ? Number(data.dht_temp).toFixed(1) + "°C" : "--";
+                    const hum = (data.humidity !== null && data.humidity !== undefined) ? Number(data.humidity).toFixed(0) + "%" : "--";
+                    updateCard('envBox-node1', 'ok', `${dhtTemp} / ${hum}`);
+                }
+                // 2. Tilt Sensor
                 const angle = Number(data.tilt || 0);
                 if (Math.abs(angle) > 30) {
-                    updateCard('tiltBox', 'warn', angle.toFixed(1) + "°", 'TILT WARNING');
-                    if(!lastTiltHigh) addLog(`Tilt Alert: ${angle.toFixed(1)}°`, "warn");
-                    lastTiltHigh = true;
+                    updateCard(`tiltBox-${nId}`, 'warn', angle.toFixed(1) + "°");
+                    if(!nodeMem.tiltHigh) addLog(`${nodePrefix} Tilt Alert: ${angle.toFixed(1)}°`, "warn");
+                    nodeMem.tiltHigh = true;
                 } else {
-                    updateCard('tiltBox', 'ok', angle.toFixed(1) + "°", 'Stable');
-                    lastTiltHigh = false;
+                    updateCard(`tiltBox-${nId}`, 'ok', angle.toFixed(1) + "°");
+                    nodeMem.tiltHigh = false;
                 }
 
-                // 4. Motion Sensor
+                // 3. Motion Sensor
                 const motion = Number(data.motion || 0);
                 if (motion === 1) {
-                    updateCard('motionBox', 'warn', 'DETECTED', 'Motion in Zone 1');
-                    
-                    if(lastMotion === 0) {
-                        addLog("Motion detected at perimeter", "warn");
-                        // Flash Global Status Orange
+                    updateCard(`motionBox-${nId}`, 'warn', 'DETECTED');
+                    if(nodeMem.motion === 0) {
+                        addLog(`${nodePrefix} Motion detected`, "warn");
                         gText.textContent = "Activity Detected"; 
                         gText.style.color = "#ffab00";
-                        dot.style.backgroundColor = "#ffab00";
+                        globalDot.style.backgroundColor = "#ffab00";
                     }
                 } else {
-                    updateCard('motionBox', 'ok', 'Clear', 'No activity');
+                    updateCard(`motionBox-${nId}`, 'ok', 'CLEAR');
                 }
-                lastMotion = motion;
+                nodeMem.motion = motion;
 
-                // 5. Gunshot Sensor (Critical)
+// 4. Gunshot Sensor (Critical)
                 const gunshot = Number(data.gunshot || 0);
                 if (gunshot === 1) {
-                    updateCard('gunshotBox', 'danger', 'DETECTED', 'High Decibel Event');
+                    updateCard(`gunshotBox-${nId}`, 'danger', 'DETECTED');
                     
-                    if(lastGunshot === 0) {
-                        addLog("CRITICAL: GUNSHOT DETECTED", "danger");
-                        // Flash Global Status Red
+                    if(nodeMem.gunshot === 0) {
+                        addLog(`${nodePrefix} CRITICAL: GUNSHOT DETECTED`, "danger");
                         gText.textContent = "SECURITY ALERT"; 
                         gText.style.color = "#ff1744";
-                        dot.style.backgroundColor = "#ff1744";
-                        dot.style.boxShadow = '0 0 20px #ff1744';
+                        globalDot.style.backgroundColor = "#ff1744";
+                        globalDot.style.boxShadow = '0 0 20px #ff1744';
                     }
+                    nodeMem.gunshot = 1;
+
+                    // --- NEW: FRONTEND AUTO-CLEAR TIMER ---
+                    // If a timer is already running, cancel it so we can restart the 5 seconds
+                    if (nodeMem.gunshotTimer) clearTimeout(nodeMem.gunshotTimer);
+                    
+                    // Start a precise 5-second countdown to turn the card green again
+                    nodeMem.gunshotTimer = setTimeout(() => {
+                        updateCard(`gunshotBox-${nId}`, 'ok', 'SAFE');
+                        nodeMem.gunshot = 0;
+                        
+                        // Check if the other camera is also clear before resetting the global header
+                        const otherNode = nId === "main" ? "node1" : "main";
+                        if (fleetMemory[otherNode].gunshot === 0 && fleetMemory[otherNode].motion === 0 && nodeMem.motion === 0) {
+                            gText.textContent = "System Nominal"; 
+                            gText.style.color = '#00e676';
+                            globalDot.style.backgroundColor = '#00e676';
+                            globalDot.style.boxShadow = '0 0 10px #00e676';
+                        }
+                    }, 3000); // 3000 milliseconds = EXACTLY 5 seconds
+
                 } else {
-                    updateCard('gunshotBox', 'ok', 'Safe', 'Listening...');
+                    updateCard(`gunshotBox-${nId}`, 'ok', 'SAFE');
+                    nodeMem.gunshot = 0;
                 }
-                lastGunshot = gunshot;
 
             } else {
                 // --- Offline Mode ---
-                if(lastOnlineState === true) addLog("Lost connection to ESP32", "danger");
-                lastOnlineState = false;
+                if(nodeMem.online === true) addLog(`${nodePrefix} Lost connection`, "danger");
+                nodeMem.online = false;
                 
-                dot.style.backgroundColor = '#546e7a'; 
-                dot.style.boxShadow = 'none';
-                gText.textContent = "Device Offline"; 
-                gText.style.color = '#546e7a';
+                // Node UI Reset
+                if(nodeBar) nodeBar.style.backgroundColor = '#546e7a';
+                if(nodeDot) { nodeDot.style.backgroundColor = '#546e7a'; nodeDot.style.boxShadow = 'none'; }
+                if(valLink) { valLink.textContent = "OFFLINE"; valLink.style.color = "#546e7a"; }
+                if(valRssi) valRssi.textContent = "--";
+                if(valTemp) valTemp.textContent = "--";
 
-                updateCard('espBox', 'offline', 'Offline', 'No Signal');
-                updateCard('sysBox', 'offline', '--', '--');
-                updateCard('tiltBox', 'offline', '--', '--');
-                updateCard('motionBox', 'offline', '--', '--');
-                updateCard('gunshotBox', 'offline', '--', '--');
+                updateCard(`tiltBox-${nId}`, 'offline', '--');
+                updateCard(`envBox-${nId}`, 'offline', '-- / --');
+                updateCard(`motionBox-${nId}`, 'offline', '--');
+                updateCard(`gunshotBox-${nId}`, 'offline', '--');
             }
 
         } catch (e) {
             console.error(e);
-            updateCard('espBox', 'offline', 'Error', 'UI Render Error');
         }
     }
 
@@ -417,12 +555,10 @@ function addLog(msg, type, customTime = null) {
         const originalHTML = '<span>📷</span> Wake Camera';
         
         try {
-            // 1. Change UI to loading state
             btn.classList.add('loading');
             btn.innerHTML = '<span>⏳</span> Sending...';
             addLog("Sending manual wake command...", "ok");
             
-            // 2. Send the request
             const res = await fetch('/api/command', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -431,73 +567,149 @@ function addLog(msg, type, customTime = null) {
             const data = await res.json();
             if(!data.success) throw new Error(data.error);
 
-            // 3. Show Success
             btn.innerHTML = '<span>✅</span> Sent!';
             
         } catch (e) {
             console.error(e);
             addLog("Failed to send wake command", "danger");
-            // Show Error
             btn.innerHTML = '<span>❌</span> Failed';
         }
 
-        // 4. Reset the button back to normal after 2 seconds
         setTimeout(() => {
             btn.classList.remove('loading');
             btn.innerHTML = originalHTML;
         }, 2000);
     }
+// ==========================================
+    // CROSS-NODE LINK TOGGLE LOGIC
+    // ==========================================
+    let isNodeLinked = false;
 
+    // 1. Fetch the initial state from the server when the page loads
+    async function fetchSettings() {
+        try {
+            const res = await fetch('/api/settings');
+            const data = await res.json();
+            if (data.success && data.settings) {
+                isNodeLinked = data.settings.node1_triggers_main === true;
+                updateLinkBtnUI();
+            }
+        } catch (e) {
+            console.error("Failed to load settings:", e);
+        }
+    }
+
+    // 2. Handle button clicks
+    async function toggleNodeLink() {
+        const btn = document.getElementById('linkToggleBtn');
+        const newState = !isNodeLinked; // Flip the state
+        
+        try {
+            btn.classList.add('loading'); // Use your existing loading CSS class
+            
+            const res = await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ node1_triggers_main: newState })
+            });
+            const data = await res.json();
+            
+            if(data.success) {
+                isNodeLinked = newState;
+                updateLinkBtnUI();
+                addLog(`Node 1 to Main linking turned ${isNodeLinked ? 'ON' : 'OFF'}`, isNodeLinked ? 'ok' : 'warn');
+            } else {
+                addLog("Failed to update link settings", "danger");
+            }
+        } catch (e) {
+            console.error(e);
+            addLog("Network error updating settings", "danger");
+        }
+        
+        btn.classList.remove('loading');
+    }
+
+    // 3. Update the button colors
+    function updateLinkBtnUI() {
+        const btn = document.getElementById('linkToggleBtn');
+        if (!btn) return;
+        
+        if (isNodeLinked) {
+            btn.innerHTML = '<span>🔗</span> Link to Main: ON';
+            btn.style.background = '#00e676'; // Bright green
+            btn.style.borderColor = '#00e676';
+            btn.style.color = '#1a1a1a'; // Dark text for contrast against green
+        } else {
+            btn.innerHTML = '<span>🔗</span> Link to Main: OFF';
+            btn.style.background = '#546e7a'; // Muted slate grey
+            btn.style.borderColor = '#546e7a';
+            btn.style.color = '#fff';
+        }
+    }
+
+    // Trigger the fetch immediately
+    fetchSettings();
     // --- Load History from Database ---
+// --- Load History from Database ---
     async function loadLogHistory() {
         try {
             const res = await fetch("/api/sensor_history");
             const data = await res.json();
             
             if (data.success && data.events) {
-                // Reverse the array so we prepend the oldest first, 
-                // leaving the absolute newest event at the very top of the UI
                 const reversedEvents = data.events.reverse();
-
                 reversedEvents.forEach(event => {
-                    let msg = "";
-                    let type = "ok";
-
-                    if (event.type === "motion") {
-                        msg = "Motion detected at perimeter";
-                        type = "warn";
-                    } else if (event.type === "tilt") {
-                        msg = `Tilt Alert: ${Number(event.value).toFixed(1)}°`;
-                        type = "warn";
-                    } else if (event.type === "gunshot") {
-                        msg = "CRITICAL: GUNSHOT DETECTED";
-                        type = "danger";
-                    }else if (event.type === "system" && event.value === 1.0) {
-                        msg = "Camera manually awakened";
-                        type = "ok";
+                    
+                    // SMART PARSER: Handle both old data ("motion") and new data ("node1_motion")
+                    let nodeId = "MAIN";
+                    let actualType = event.type;
+                    
+                    if (event.type.includes('_')) {
+                        const parts = event.type.split('_');
+                        nodeId = parts[0].toUpperCase();
+                        actualType = parts.slice(1).join('_'); // gets the rest of the string
                     }
 
-                    addLog(msg, type, event.timestamp);
+                    const prefix = `[${nodeId}]`;
+                    let msg = ""; 
+                    let type = "ok";
+                    
+                    if (actualType === "motion") { 
+                        msg = `${prefix} Motion detected`; 
+                        type = "warn"; 
+                    } 
+                    else if (actualType === "tilt") { 
+                        msg = `${prefix} Tilt Alert: ${Number(event.value).toFixed(1)}°`; 
+                        type = "warn"; 
+                    } 
+                    else if (actualType === "gunshot") { 
+                        msg = `${prefix} CRITICAL: GUNSHOT DETECTED`; 
+                        type = "danger"; 
+                    } 
+                    else if (actualType === "system" && event.value === 1.0) { 
+                        msg = `${prefix} Camera manually awakened`; 
+                        type = "ok"; 
+                    }
+
+                    if (msg !== "") {
+                        addLog(msg, type, event.timestamp);
+                    }
                 });
             }
-        } catch (e) {
-            console.error("Failed to load history:", e);
-        }
+        } catch (e) { console.error("Failed to load history:", e); }
     }
 
     // ==========================================
-    // WEBSOCKET INITIALIZATION (Replaces old Polling)
+    // WEBSOCKET INITIALIZATION
     // ==========================================
-    const socket = io(); // Connects to the host server automatically
+    const socket = io();
 
-    // 1. Listen for the live data pushed by Python
     socket.on('sensor_update', function(data) {
         processLiveData(data);
     });
 
-    // 2. Handle server disconnects smoothly
     socket.on('disconnect', function() {
-        processLiveData({ esp_online: false }); // Force UI into offline mode
+        processLiveData({ esp_online: false });
         addLog("Disconnected from Central Server", "danger");
     });
 
@@ -505,7 +717,6 @@ function addLog(msg, type, customTime = null) {
         addLog("Connected to Central Server via WebSockets", "ok");
     });
 
-    // 3. Start by loading old history (No more setInterval!)
     loadLogHistory().then(() => {
         addLog("History loaded. Waiting for live telemetry...", "ok");
     });
