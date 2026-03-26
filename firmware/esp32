@@ -24,11 +24,20 @@ const int wificonfig_button = 5;
 // --- NEW CONTROL PIN ---
 const int controlPin = 26; 
 
-// I2S Microphone
+// I2S Microphone (Dual Stereo Setup)
 #define I2S_WS 15
 #define I2S_SD 33
 #define I2S_SCK 14
 #define I2S_PORT I2S_NUM_0
+
+// ==========================================
+// BATTERY CONFIG (2S Li-ion)
+// ==========================================
+#define BATT_PIN 34          // ADC1 pin for Wi-Fi compatibility
+#define R1_VAL 47000.0       // 47k Ohm
+#define R2_VAL 22000.0       // 22k Ohm
+#define V_REF 3.3            // ESP32 standard reference voltage
+#define BATT_CALIBRATION 1.141 // Calibration applied from earlier test
 
 // ==========================================
 // SYSTEM & HEARTBEAT CONFIG
@@ -129,10 +138,10 @@ void i2sInit();
 void sendHeartbeat();   
 void handleHeartbeat(); 
 void reconnectMQTT(); 
-void mqttCallback(char* topic, byte* payload, unsigned int length); // NEW
+void mqttCallback(char* topic, byte* payload, unsigned int length); 
 
 // ==========================================
-// CORE 0: STEREO AUDIO PROCESSING TASK 
+// CORE 0: DUAL-MIC AUDIO PROCESSING TASK 
 // ==========================================
 void AudioProcessingTask(void * parameter) {
   enum State { IDLE, TRIGGERED };
@@ -151,7 +160,7 @@ void AudioProcessingTask(void * parameter) {
     
     if (bytes_read > 0) {
       
-      // --- 1. CALCULATE DC OFFSET (MEAN) ---
+      // --- 1. CALCULATE DC OFFSET (MEAN) WITH VOLUME BOOST ---
       int32_t meanL = 0;
       int32_t meanR = 0;
       for (int i = 0; i < (SAMPLES_PER_CHUNK * 2); i += 2) {
@@ -167,16 +176,16 @@ void AudioProcessingTask(void * parameter) {
       int sampleIdx = 0;
 
       for (int i = 0; i < (SAMPLES_PER_CHUNK * 2); i += 2) {
-        // Process Left Channel
-        int32_t sL = (samples32[i] >> 16) - meanL; // Subtract DC offset
+        // Process Left Channel (with >> 16 boost)
+        int32_t sL = (samples32[i] >> 16) - meanL; 
         sL *= SOFTWARE_GAIN_FACTOR;
         if (sL > 32767) sL = 32767;
         if (sL < -32768) sL = -32768;
         samplesLeft[sampleIdx] = (int16_t)sL;
         if (abs(samplesLeft[sampleIdx]) > current_peak_L) current_peak_L = abs(samplesLeft[sampleIdx]);
 
-        // Process Right Channel
-        int32_t sR = (samples32[i+1] >> 16) - meanR; // Subtract DC offset
+        // Process Right Channel (with >> 16 boost)
+        int32_t sR = (samples32[i+1] >> 16) - meanR; 
         sR *= SOFTWARE_GAIN_FACTOR;
         if (sR > 32767) sR = 32767;
         if (sR < -32768) sR = -32768;
@@ -186,6 +195,7 @@ void AudioProcessingTask(void * parameter) {
         sampleIdx++;
       }
 
+      // Find the loudest microphone to use for the FFT
       int16_t current_peak = max(current_peak_L, current_peak_R);
       int16_t* loudest_channel_buffer = (current_peak_L > current_peak_R) ? samplesLeft : samplesRight;
 
@@ -299,34 +309,29 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.print(". Message: ");
   Serial.println(message);
 
-  // Check if the message is on our command topic
   if (String(topic) == topicCommand) {
-    message.toUpperCase(); // Make it case-insensitive
+    message.toUpperCase(); 
     
-    // Turn PIN 23 HIGH if message is ON, 1, or HIGH
     if (message == "ON" || message == "1" || message == "HIGH") {
       digitalWrite(controlPin, HIGH);
-      Serial.println("Action: Pin 23 turned HIGH");
+      Serial.println("Action: Pin 26 turned HIGH");
     } 
-    // Turn PIN 23 LOW if message is OFF, 0, or LOW
     else if (message == "OFF" || message == "0" || message == "LOW") {
       digitalWrite(controlPin, LOW);
-      Serial.println("Action: Pin 23 turned LOW");
+      Serial.println("Action: Pin 26 turned LOW");
     }
-    // --- NON-BLOCKING WAKE COMMAND ---
     else if (message == "WAKE") {
       Serial.println("Action: Manual Wake Pulse Started");
       isManualWakeActive = true;
-      manualWakeTimer = millis(); // Start the stopwatch
+      manualWakeTimer = millis(); 
       digitalWrite(wake_up, HIGH);
-      // NEW: Send a response back to the server!
       mqttClient.publish(topicEvents, "{\"manual_wake\":1}");
     }
   }
 }
 
 // ==========================================
-// HELPER: Reconnect MQTT (Non-Blocking)
+// HELPER: Reconnect MQTT
 // ==========================================
 void reconnectMQTT() {
   if (WiFi.status() != WL_CONNECTED) return;
@@ -341,7 +346,6 @@ void reconnectMQTT() {
       
       if (mqttClient.connect(clientId.c_str())) {
         Serial.println("connected");
-        // --- SUBSCRIBE TO COMMANDS AFTER CONNECTING ---
         mqttClient.subscribe(topicCommand);
         Serial.println("Subscribed to command topic");
       } else {
@@ -357,20 +361,18 @@ void reconnectMQTT() {
 // HELPER: Send Data (Events) -> MQTT
 // ==========================================
 void sendData(bool isGunshotEvent) {
-  // 1. LED check: ONLY cares about WiFi status
   if (WiFi.status() == WL_CONNECTED) {
      digitalWrite(wifi_on, HIGH);
-     digitalWrite(wifi_off, LOW); // Green ON, Red OFF
+     digitalWrite(wifi_off, LOW); 
   } else {
      digitalWrite(wifi_on, LOW);
-     digitalWrite(wifi_off, HIGH); // Green OFF, Red ON
+     digitalWrite(wifi_off, HIGH); 
      Serial.println("WiFi disconnected. Skipping send.");
-     return; // Stop running the function right here
+     return; 
   }
 
-  // 2. Data check: ONLY try to send if MQTT is connected
   if (mqttClient.connected()) {
-     char payload[128];
+     char payload[200]; // Increased buffer size safely
      int gsFlag = isGunshotEvent ? 1 : 0;
      double r = isGunshotEvent ? gunshotRatio : 0.0;
      int z = isGunshotEvent ? gunshotZCR : 0;
@@ -379,9 +381,7 @@ void sendData(bool isGunshotEvent) {
               "{\"motion\":%d,\"tilt\":%.2f,\"gunshot\":%d,\"ratio\":%.2f,\"zcr\":%d}", 
               motion_status, current_angle, gsFlag, r, z);
      
-     bool success = mqttClient.publish(topicEvents, payload);
-     
-     if (success) {
+     if (mqttClient.publish(topicEvents, payload)) {
         Serial.println("Sent Event to server via MQTT");
      } else {
         Serial.println("MQTT Publish Failed");
@@ -394,7 +394,7 @@ void sendData(bool isGunshotEvent) {
 }
 
 // ==========================================
-// HELPER: Send Heartbeat -> MQTT
+// HELPER: Send Heartbeat -> MQTT (WITH BATTERY)
 // ==========================================
 void sendHeartbeat() {
     if (WiFi.status() != WL_CONNECTED || !mqttClient.connected()) return;
@@ -404,7 +404,24 @@ void sendHeartbeat() {
     int8_t rssi       = WiFi.RSSI();
     float temperature = temperatureRead(); 
 
-    char payload[180];
+    // --- BATTERY READING AND MATH ---
+    long totalAdc = 0;
+    const int numSamples = 20;
+    for (int i = 0; i < numSamples; i++) {
+      totalAdc += analogRead(BATT_PIN);
+      delay(2); 
+    }
+    float avgAdc = (float)totalAdc / numSamples;
+    
+    float pinVoltage = (avgAdc / 4095.0) * V_REF;
+    float batteryVoltage = pinVoltage * ((R1_VAL + R2_VAL) / R2_VAL) * BATT_CALIBRATION;
+    
+    float batteryPercentage = ((batteryVoltage - 6.0) / (8.4 - 6.0)) * 100.0;
+    if (batteryPercentage > 100.0) batteryPercentage = 100.0;
+    if (batteryPercentage < 0.0) batteryPercentage = 0.0;
+    // --------------------------------
+
+    char payload[300]; // Increased buffer size for battery data
     snprintf(payload, sizeof(payload),
         "{"
         "\"alive\":1,"
@@ -412,12 +429,16 @@ void sendHeartbeat() {
         "\"free_heap\":%u,"
         "\"min_heap\":%u,"
         "\"temp\":%.1f,"
-        "\"rssi\":%d"
+        "\"rssi\":%d,"
+        "\"batt_v\":%.2f,"
+        "\"batt_pct\":%.0f"
         "}",
-        millis(), freeHeap, minHeap, temperature, rssi
+        millis(), freeHeap, minHeap, temperature, rssi, batteryVoltage, batteryPercentage
     );
 
-    mqttClient.publish(topicHeartbeat, payload);
+    if(mqttClient.publish(topicHeartbeat, payload)) {
+       Serial.printf("[MQTT] Heartbeat published | Batt: %.2fV (%.0f%%)\n", batteryVoltage, batteryPercentage);
+    }
 }
 
 void handleHeartbeat() {
@@ -437,7 +458,7 @@ void calibrate() {
   float sumX = 0, sumY = 0, sumZ = 0;
   sensors_event_t a, g, temp;
 
-  Serial.println("Calibrating... keep sensor steady");
+  Serial.println("Calibrating MPU6050... keep sensor steady");
   delay(1000); 
 
   for (int i = 0; i < samples; i++) {
@@ -478,10 +499,10 @@ void setup() {
   pinMode(wake_up, OUTPUT);
   pinMode(buttonPin, INPUT_PULLUP);
   pinMode(wificonfig_button, INPUT_PULLUP);
+  pinMode(BATT_PIN, INPUT); // Initialize Battery ADC Pin
   
-  // --- Initialize the new control pin ---
   pinMode(controlPin, OUTPUT);
-  digitalWrite(controlPin, LOW); // Start with it turned off
+  digitalWrite(controlPin, LOW); 
 
   digitalWrite(ledPin, LOW);
 
@@ -504,7 +525,6 @@ void setup() {
   preferences.begin("my-app", false);
   
   String storedUrl = preferences.getString("server_url", "192.168.1.100"); 
-  
   storedUrl.toCharArray(serverUrlBuffer, 100);
   serverUrl = storedUrl;
   Serial.print("Loaded MQTT Broker IP: "); Serial.println(serverUrl);
@@ -519,7 +539,7 @@ void setup() {
     delay(500);
     digitalWrite(wifi_off, 1);
     digitalWrite(wifi_on, 0);
-    ESP.restart(); // SW_RESET triggered here if WiFi fails!
+    ESP.restart(); 
   } else {
     Serial.println("Connected to WiFi");
     digitalWrite(wifi_on, 1);
@@ -534,7 +554,7 @@ void setup() {
 
   // --- Initialize MQTT ---
   mqttClient.setServer(serverUrlBuffer, mqttPort);
-  mqttClient.setCallback(mqttCallback); // --- REGISTER THE CALLBACK HERE ---
+  mqttClient.setCallback(mqttCallback); 
 
   // --- Start Audio Task AFTER everything else is ready ---
   xTaskCreatePinnedToCore(
@@ -557,13 +577,15 @@ void loop() {
   if (!mqttClient.connected()) {
     reconnectMQTT();
   } else {
-    mqttClient.loop(); // This line is what actually checks for incoming messages!
+    mqttClient.loop(); 
   }
-  // --- NEW: CHECK IF PULSE IS DONE (100ms) ---
+  
+  // --- WAKE PULSE TIMER ---
   if (isManualWakeActive && (millis() - manualWakeTimer >= 100)) {
       isManualWakeActive = false;
-      digitalWrite(wake_up, LOW); // Turn it off after 100ms
+      digitalWrite(wake_up, LOW); 
   }
+  
   // ---- 1. SYSTEM HEARTBEAT ----
   handleHeartbeat();
 
@@ -604,11 +626,12 @@ void loop() {
   }
   lastButtonState = readingCal;
 
-  // ---- 4. SLOW LOOP (Sensors 1Hz) ----
+ // ---- 4. SLOW LOOP (Sensors 1Hz) ----
   unsigned long currentMillis = millis();
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis; 
-  // --- REAL-TIME LED STATUS CHECK (WIFI ONLY) ---
+    
+    // --- REAL-TIME LED STATUS CHECK ---
     if (WiFi.status() == WL_CONNECTED) {
         digitalWrite(wifi_on, HIGH);
         digitalWrite(wifi_off, LOW);
@@ -616,13 +639,15 @@ void loop() {
         digitalWrite(wifi_on, LOW);
         digitalWrite(wifi_off, HIGH);
     }
-    // ----------------------------------------------
+    
     int motion1 = digitalRead(pirPin);
     int motion2 = digitalRead(rcwlPin);
     
+    // --- RESTORED: PRINT RAW MOTION SENSORS ---
     Serial.print("pir: "); Serial.println(motion1);
     Serial.print("rcwl: "); Serial.println(motion2);
-    
+    // ------------------------------------------
+
     sensors_event_t a, g, temp;
     mpu.getEvent(&a, &g, &temp);
 
@@ -640,7 +665,9 @@ void loop() {
       current_angle = acos(cosine) * 180.0 / PI;
     }
 
+    // --- RESTORED: PRINT TILT ANGLE ---
     Serial.print("Tilt Angle: "); Serial.println(current_angle);
+    // ----------------------------------
 
     tilt_status = 0;
     if(last_angle > 30 && current_angle < 30) tilt_status = 1;
@@ -675,7 +702,6 @@ void loop() {
     motion_status = serverMotionState ? 1 : 0; 
     bool anyEventActive = (motion_status == 1) || (gunshotDetected == true);
 
-    // Only let sensors control the pin if a manual pulse isn't happening
     if (!isManualWakeActive) {
         digitalWrite(wake_up, anyEventActive ? HIGH : LOW);
     }
@@ -690,21 +716,19 @@ void loop() {
     }
   } 
 
-  // --- ADDED TO PREVENT WATCHDOG CRASHES ---
   delay(10); 
 }
-
 // ==========================================
-// I2S INIT
+// I2S INIT (WITH HIGH-PRIORITY INTERRUPT)
 // ==========================================
 void i2sInit() {
   i2s_config_t i2s_config = {
     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
     .sample_rate = I2S_SAMPLE_RATE,
     .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,
-    .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
-    .communication_format = I2S_COMM_FORMAT_STAND_I2S,
-    .intr_alloc_flags = 0,
+    .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT, // Reading both mics
+    .communication_format = I2S_COMM_FORMAT_I2S,  // Safe format for 2.0.17
+    .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,     // High priority CPU attention
     .dma_buf_count = 8,
     .dma_buf_len = SAMPLES_PER_CHUNK,
     .use_apll = false
