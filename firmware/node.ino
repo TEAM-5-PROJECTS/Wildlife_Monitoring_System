@@ -8,10 +8,12 @@
 #include <arduinoFFT.h>
 #include <Ticker.h> 
 #include <DHT.h>
+
 // --- DHT11 CONFIG ---
 #define DHTPIN 13       
 #define DHTTYPE DHT11 
 DHT dht(DHTPIN, DHTTYPE);
+
 // ==========================================
 // PIN DEFINITIONS
 // ==========================================
@@ -29,6 +31,15 @@ const int gunshotLedPin = 4;
 #define I2S_SD 33
 #define I2S_SCK 14
 #define I2S_PORT I2S_NUM_0
+
+// ==========================================
+// BATTERY CONFIG (2S Li-ion)
+// ==========================================
+#define BATT_PIN 34          // ADC1 pin for Wi-Fi compatibility
+#define R1_VAL 47000.0       // 47k Ohm
+#define R2_VAL 22000.0       // 22k Ohm
+#define V_REF 3.3            // ESP32 standard reference voltage
+#define BATT_CALIBRATION 1.141 // Calibration applied from earlier test
 
 // ==========================================
 // SYSTEM & HEARTBEAT CONFIG
@@ -126,7 +137,7 @@ void configModeCallback(WiFiManager *myWiFiManager) {
 }
 
 // ==========================================
-// CORE 0: MONO AUDIO PROCESSING TASK 
+// CORE 0: HYBRID STEREO-TO-MONO AUDIO TASK 
 // ==========================================
 void AudioProcessingTask(void * parameter) {
   enum State { IDLE, TRIGGERED };
@@ -135,7 +146,8 @@ void AudioProcessingTask(void * parameter) {
   int consecutiveLoudChunks = 0;
   int16_t peak_amplitude_of_event = 0;
 
-  int32_t samples32[SAMPLES_PER_CHUNK]; 
+  // FIX 1: Doubled buffer size for Stereo data
+  int32_t samples32[SAMPLES_PER_CHUNK * 2]; 
   int16_t samplesMono[SAMPLES_PER_CHUNK];
   size_t bytes_read;
 
@@ -145,15 +157,23 @@ void AudioProcessingTask(void * parameter) {
     if (bytes_read > 0) {
       
       int32_t mean = 0;
+
+      // FIX 2: Convert Stereo to Mono and apply `>> 14` volume boost
       for (int i = 0; i < SAMPLES_PER_CHUNK; i++) {
-        mean += (samples32[i] >> 16);
+        int32_t left = samples32[i * 2] >> 14;
+        int32_t right = samples32[i * 2 + 1] >> 14;
+
+        int16_t mixedMono = (int16_t)(left + right);
+        
+        samplesMono[i] = mixedMono;
+        mean += mixedMono;
       }
       mean /= SAMPLES_PER_CHUNK;
 
       int16_t current_peak = 0;
 
       for (int i = 0; i < SAMPLES_PER_CHUNK; i++) {
-        int32_t s = (samples32[i] >> 16) - mean; 
+        int32_t s = samplesMono[i] - mean; 
         s *= SOFTWARE_GAIN_FACTOR;
         
         if (s > 32767) s = 32767;
@@ -310,7 +330,6 @@ void sendData(bool isGunshotEvent) {
   if(isGunshotEvent) digitalWrite(gunshotLedPin, LOW); 
 }
 
-
 // ==========================================
 // HELPER: Send Heartbeat -> MQTT
 // ==========================================
@@ -328,11 +347,28 @@ void sendHeartbeat() {
     float dht_temp = dht.readTemperature(); 
     float humidity = dht.readHumidity();
 
-    // Safety check in case the DHT11 wire disconnects
     if (isnan(dht_temp)) dht_temp = 0.0;
     if (isnan(humidity)) humidity = 0.0;
 
-    char payload[300]; // Increased buffer size for extra data
+    // 3. Read and Calculate Smoothed Battery Voltage
+    long totalAdc = 0;
+    const int numSamples = 20;
+    for (int i = 0; i < numSamples; i++) {
+      totalAdc += analogRead(BATT_PIN);
+      delay(2); 
+    }
+    float avgAdc = (float)totalAdc / numSamples;
+    
+    float pinVoltage = (avgAdc / 4095.0) * V_REF;
+    float batteryVoltage = pinVoltage * ((R1_VAL + R2_VAL) / R2_VAL) * BATT_CALIBRATION;
+    
+    // 4. Calculate Battery Percentage
+    float batteryPercentage = ((batteryVoltage - 6.0) / (8.4 - 6.0)) * 100.0;
+    if (batteryPercentage > 100.0) batteryPercentage = 100.0;
+    if (batteryPercentage < 0.0) batteryPercentage = 0.0;
+
+    // 5. Build and Publish Payload
+    char payload[400]; 
     snprintf(payload, sizeof(payload),
         "{"
         "\"source\":\"node1\","
@@ -343,13 +379,16 @@ void sendHeartbeat() {
         "\"temp\":%.1f,"
         "\"dht_temp\":%.1f,"
         "\"humidity\":%.1f,"
-        "\"rssi\":%d"
+        "\"rssi\":%d,"
+        "\"batt_v\":%.2f,"
+        "\"batt_pct\":%.0f"
         "}",
-        millis(), freeHeap, minHeap, cpu_temp, dht_temp, humidity, rssi
+        millis(), freeHeap, minHeap, cpu_temp, dht_temp, humidity, rssi, batteryVoltage, batteryPercentage
     );
 
     if(mqttClient.publish(topicHeartbeat, payload)) {
-        Serial.printf("[MQTT] Heartbeat published. CPU: %.1fC | DHT: %.1fC | Hum: %.1f%%\n", cpu_temp, dht_temp, humidity);
+        Serial.printf("[MQTT] Heartbeat published | Temp: %.1fC | Hum: %.1f%% | Batt: %.2fV (%.0f%%)\n", 
+                      dht_temp, humidity, batteryVoltage, batteryPercentage);
     }
 }
 
@@ -373,11 +412,13 @@ void setup() {
   pinMode(wifiLedPin, OUTPUT);
   pinMode(wake_up, OUTPUT);
   pinMode(wificonfig_button, INPUT_PULLUP);
+  pinMode(BATT_PIN, INPUT); // Initialize Battery ADC Pin
   
   digitalWrite(gunshotLedPin, LOW);
   digitalWrite(wifiLedPin, LOW);
   digitalWrite(wake_up, LOW);
   dht.begin();
+  
   // --- I2S Setup ---
   i2sInit();
 
@@ -525,16 +566,16 @@ void loop() {
 }
 
 // ==========================================
-// I2S INIT
+// I2S INIT (FIX 3: STEREO + FLAG CONFIG)
 // ==========================================
 void i2sInit() {
   i2s_config_t i2s_config = {
     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
     .sample_rate = I2S_SAMPLE_RATE,
     .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,
-    .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, 
-    .communication_format = I2S_COMM_FORMAT_STAND_I2S,
-    .intr_alloc_flags = 0,
+    .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT, // Now listening in Stereo
+    .communication_format = I2S_COMM_FORMAT_I2S,
+    .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,     // High priority hardware interrupt
     .dma_buf_count = 8,
     .dma_buf_len = SAMPLES_PER_CHUNK,
     .use_apll = false
