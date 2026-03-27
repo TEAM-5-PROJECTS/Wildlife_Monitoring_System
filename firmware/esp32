@@ -37,7 +37,7 @@ const int controlPin = 26;
 #define R1_VAL 47000.0       // 47k Ohm
 #define R2_VAL 22000.0       // 22k Ohm
 #define V_REF 3.3            // ESP32 standard reference voltage
-#define BATT_CALIBRATION 1.141 // Calibration applied from earlier test
+#define BATT_CALIBRATION 1.082// Calibration applied from earlier test
 
 // ==========================================
 // SYSTEM & HEARTBEAT CONFIG
