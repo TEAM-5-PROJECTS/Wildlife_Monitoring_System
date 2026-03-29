@@ -35,15 +35,16 @@ py -3.10 -m venv venv
 
 ### Install `requirements.txt and CUDA  11.8`
 
-Install everything by running:
 
-```powershell
-pip install -r requirements.txt
-```
 NVIDIA GPU (CUDA 11.8)
 ```powershell
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 
+```
+Install everything by running:
+
+```powershell
+pip install -r requirements.txt
 ```
 
 ---
