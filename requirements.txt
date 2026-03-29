@@ -1,5 +1,5 @@
 # --- Core Compatibility ---
-setuptools==69.5.1
+setuptools<70
 
 # --- Web Server & Database ---
 Flask==3.1.2
