@@ -45,7 +45,7 @@ APP_CONFIG = {
     "weapon_confidence_threshold": 0.50, # Minimum confidence for weapon detection
     "species_confidence_threshold": 0.55, # Minimum confidence for wildlife in video smart filter
     "time_gap_threshold": 5,          # Spam prevention gap per species in video processing
-    "esp_timeout": 60 ,            #esp32 disconect time
+    "esp_timeout": 63 ,            #esp32 disconect time
     "gunshot_alert_duration": 3,    # How many seconds the gunshot alert stays RED
     "node1_triggers_main": False,
     # --- NEW: DEFAULT LOCATIONS ---
