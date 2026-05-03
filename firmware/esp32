@@ -672,6 +672,7 @@ void loop() {
     tilt_status = 0;
     if(last_angle > 30 && current_angle < 30) tilt_status = 1;
     else if(current_angle > 30 && abs(current_angle - last_angle) > 2.0) tilt_status = 1;
+    else if(last_angle > 3 && current_angle <= 2) tilt_status = 1;
 
     last_angle = current_angle;
 
