@@ -58,11 +58,12 @@ static unsigned long lastHeartbeat = 0;
 #define MAX_CONSECUTIVE_CHUNKS 45    // INCREASED from 35 to allow for room echo
 #define MAX_EVENT_DURATION 600
 
-#define RATIO_STANDARD 2.0
-#define ZCR_STANDARD 40              // LOWERED slightly for safety
-#define RATIO_STRICT 4.0             // LOWERED from 13.0 to match your 5.06 ratio
-#define ZCR_STRICT 60                // LOWERED from 100 to match your 69 ZCR
-#define MAX_LOW_ENERGY_THRESHOLD 5000000 // INCREASED so loud bass doesn't block it
+// --- NEW BOUNDING BOX THRESHOLDS ---
+#define RATIO_MIN 3.5        // Minimum high-to-low energy ratio
+#define RATIO_MAX 14.0       // Maximum ratio (rejects pure high-frequency snaps)
+#define ZCR_MIN 55           // Minimum zero crossings (rejects pure bass thuds)
+#define ZCR_MAX 75           // Maximum zero crossings (adjust to 75 to be safe around your 69 ZCR)
+#define MAX_LOW_ENERGY_THRESHOLD 5000000
 
 // ==========================================
 // GLOBALS & OBJECTS
@@ -253,26 +254,34 @@ void AudioProcessingTask(void * parameter) {
 
               Serial.printf("Done. Dur:%d | Ratio:%.2f | ZCR:%d ", consecutiveLoudChunks, ratio, peak_zcr);
 
+             // ==========================================
+              // NEW BOUNDING BOX LOGIC
+              // ==========================================
               bool isGunshot = false;
               bool passBass = (lowEnergy < MAX_LOW_ENERGY_THRESHOLD);
 
-              if (consecutiveLoudChunks <= 25) {
-                 if (ratio > RATIO_STANDARD && peak_zcr > ZCR_STANDARD && passBass) {
-                    isGunshot = true;
-                    Serial.print("[Standard Pass]");
-                 }
+              // 1. Check if ZCR falls perfectly inside the Gunshot Envelope
+              bool passZCR = (peak_zcr >= ZCR_MIN && peak_zcr <= ZCR_MAX);
+              
+              // 2. Check if the energy ratio implies a sharp crack, but NOT a pure snap
+              bool passRatio = (ratio >= RATIO_MIN && ratio <= RATIO_MAX);
+
+              // 3. ALL conditions must be met (AND logic, no ORs)
+              if (passZCR && passRatio && passBass) {
+                  isGunshot = true;
+                  Serial.print("[Gunshot Profile Matched]");
               } else {
-                 if ((ratio > RATIO_STRICT || peak_zcr > ZCR_STRICT) && passBass) {
-                    isGunshot = true;
-                    Serial.print("[Strict Pass]");
-                 } else {
-                    Serial.print("[Strict Fail: Likely Thunder]");
-                 }
+                  // Print exactly why it failed for easier debugging
+                  Serial.print("[Rejected: ");
+                  if (!passZCR) Serial.print("ZCR out of bounds ");
+                  if (!passRatio) Serial.print("Ratio out of bounds ");
+                  if (!passBass) Serial.print("Failed Bass Test ");
+                  Serial.print("]");
               }
 
               if (isGunshot) {
                 digitalWrite(wake_up, HIGH); 
-                digitalWrite(ledPin, HIGH);
+                digitalWrite(ledPin, HIGH); // Note: using ledPin as defined in your new code
                 
                 gunshotRatio = ratio;
                 gunshotZCR = peak_zcr;
@@ -280,8 +289,9 @@ void AudioProcessingTask(void * parameter) {
                 
                 Serial.println(" -> >>> STEREO GUNSHOT CONFIRMED <<<");
               } else {
-                 Serial.println(" -> REJECTED");
+                 Serial.println("");
               }
+              // ==========================================
 
             } else {
               Serial.printf("Done. REJECTED: Duration (%d) out of bounds.\n", consecutiveLoudChunks);
