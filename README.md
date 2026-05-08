@@ -127,7 +127,10 @@ python app.py
 4. Open your web browser and navigate to:
 * **Dashboard:** `http://127.0.0.1:5000/field_unit`
 
+## DEMOS
+Software Demo:https://youtu.be/htrTLkHLNSU
 
+Hardware Demo:https://youtube.com/shorts/Bd568EzYMTM?feature=share
 
 ---
 
