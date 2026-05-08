@@ -1,7 +1,7 @@
 
 # Intelligent Wildlife Monitoring System
 
-This project integrates Google’s SpeciesNet for wildlife classification with a  weapon detection model (ONNX Runtime) and a real-time MQTT sensor dashboard to monitor remote field cameras, detect threats, and trigger instant Telegram alerts.
+This project integrates Google’s SpeciesNet for wildlife classification with a  weapon detection model (]YoloV26s) and a real-time MQTT sensor dashboard to monitor remote field cameras, detect threats, and trigger instant Telegram alerts.
 
 ## Hardware Setup
 
@@ -323,8 +323,8 @@ WildlifeProject/
 │
 ├── speciesnet_model/           # The downloaded Kaggle AI model
 │   ├── always_crop_... .pt     # PyTorch model weights
-│   └── info.json 
-|              # Model configuration
+│   └── info.json               # Model configuration
+|             
 ├── weapon_model.onnx           # Weapon Detection Model(yolov26)
 │   
 │   
