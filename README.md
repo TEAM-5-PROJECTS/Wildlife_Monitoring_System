@@ -323,7 +323,11 @@ WildlifeProject/
 │
 ├── speciesnet_model/           # The downloaded Kaggle AI model
 │   ├── always_crop_... .pt     # PyTorch model weights
-│   └── info.json               # Model configuration
+│   └── info.json 
+|              # Model configuration
+├── weapon_model.onnx           # Weapon Detection Model(yolov26)
+│   
+│   
 │
 ├── templates/                  # Frontend HTML UI
 │   ├── index.html
