@@ -3,6 +3,239 @@
 
 This project integrates Google’s SpeciesNet for wildlife classification with a  weapon detection model (ONNX Runtime) and a real-time MQTT sensor dashboard to monitor remote field cameras, detect threats, and trigger instant Telegram alerts.
 
+## Hardware Setup
+
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="assets/main.jpeg" width="300" alt="Field Unit Setup"/><br>
+      <em>1. Main unit with sensors and camera</em>
+    </td>
+    <td align="center">
+      <img src="assets/auxnode.jpeg" width="350" alt="Sensor Node"/><br>
+      <em>2. Auxiliary unit with sensors only</em>
+    </td>
+  </tr>
+</table>
+
+## Hardware Components
+### Main Field Unit
+- ESP32 Development Board
+- AMB82 Mini Camera Module
+- PIR Motion Sensor
+- HLK-LD105 Microwave Motion Sensor
+- MPU6050 Accelerometer/Gyroscope
+- I2S Digital Microphone(INMP441)
+- 2S Li-ion Battery Pack
+- Battery Voltage Divider (47kΩ + 22kΩ resistors)
+- Status LEDs
+- Push Buttons (Calibration + Wi-Fi Config)
+
+### Auxiliary Sensor Node
+- ESP32 Development Board
+- PIR Motion Sensor
+- RCWL Microwave Motion Sensor
+- I2S Digital Microphone
+- DHT11 Temperature & Humidity Sensor
+- 2S Li-ion Battery Pack
+- Battery Voltage Divider (47kΩ + 22kΩ resistors)
+- Status LEDs
+- Wi-Fi Config Button
+
+### Camera Unit
+- AMB82 Mini AI Camera Board
+- MicroSD Card
+- Wi-Fi Connectivity
+- Wake Trigger Interface
+<h3>Main Field Unit (ESP32)</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Component</th>
+      <th>GPIO Pin</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>PIR Motion Sensor</td>
+      <td>GPIO 27</td>
+    </tr>
+    <tr>
+      <td>HLK-LD105 Motion Sensor</td>
+      <td>GPIO 17</td>
+    </tr>
+    <tr>
+      <td>MPU6050 (I2C SDA/SCL)</td>
+      <td>Default I2C Pins</td>
+    </tr>
+    <tr>
+      <td>I2S Microphone WS</td>
+      <td>GPIO 15</td>
+    </tr>
+    <tr>
+      <td>I2S Microphone SD</td>
+      <td>GPIO 33</td>
+    </tr>
+    <tr>
+      <td>I2S Microphone SCK</td>
+      <td>GPIO 14</td>
+    </tr>
+    <tr>
+      <td>Battery Voltage Monitor</td>
+      <td>GPIO 34</td>
+    </tr>
+    <tr>
+      <td>Status LED</td>
+      <td>GPIO 2</td>
+    </tr>
+    <tr>
+      <td>Wi-Fi Connected LED</td>
+      <td>GPIO 19</td>
+    </tr>
+    <tr>
+      <td>Wi-Fi Disconnected LED</td>
+      <td>GPIO 32</td>
+    </tr>
+    <tr>
+      <td>Wake Trigger Output</td>
+      <td>GPIO 18</td>
+    </tr>
+    <tr>
+      <td>Calibration Button</td>
+      <td>GPIO 4</td>
+    </tr>
+    <tr>
+      <td>Wi-Fi Config Button</td>
+      <td>GPIO 5</td>
+    </tr>
+    <tr>
+      <td>Control Output</td>
+      <td>GPIO 26</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h3>Auxiliary Sensor Node (ESP32)</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Component</th>
+      <th>GPIO Pin</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>PIR Motion Sensor</td>
+      <td>GPIO 27</td>
+    </tr>
+    <tr>
+      <td>RCWL Motion Sensor</td>
+      <td>GPIO 25</td>
+    </tr>
+    <tr>
+      <td>DHT11 Sensor</td>
+      <td>GPIO 13</td>
+    </tr>
+    <tr>
+      <td>I2S Microphone WS</td>
+      <td>GPIO 15</td>
+    </tr>
+    <tr>
+      <td>I2S Microphone SD</td>
+      <td>GPIO 33</td>
+    </tr>
+    <tr>
+      <td>I2S Microphone SCK</td>
+      <td>GPIO 14</td>
+    </tr>
+    <tr>
+      <td>Battery Voltage Monitor</td>
+      <td>GPIO 34</td>
+    </tr>
+    <tr>
+      <td>Wi-Fi Status LED</td>
+      <td>GPIO 2</td>
+    </tr>
+    <tr>
+      <td>Gunshot Detection LED</td>
+      <td>GPIO 4</td>
+    </tr>
+    <tr>
+      <td>Wake Trigger Output</td>
+      <td>GPIO 18</td>
+    </tr>
+    <tr>
+      <td>Wi-Fi Config Button</td>
+      <td>GPIO 5</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h3>AMB82 Mini Camera Unit</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Component</th>
+      <th>Connection</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Wake Trigger Input</td>
+      <td>GPIO 21</td>
+    </tr>
+    <tr>
+      <td>MicroSD Card</td>
+      <td>Onboard</td>
+    </tr>
+    <tr>
+      <td>Wi-Fi</td>
+      <td>Internal</td>
+    </tr>
+    <tr>
+      <td>Camera + Audio</td>
+      <td>Onboard</td>
+    </tr>
+  </tbody>
+</table>
+
+## Software Interface
+
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="assets/mainweb.png" width="350" alt="Software Interface 1"/><br>
+      <em>Main menue</em>
+    </td>
+    <td align="center">
+      <img src="assets/sensor.png" width="350" alt="Software Interface 2"/><br>
+      <em>Sensor  dashboard</em>
+    </td>
+    <td align="center">
+      <img src="assets/detection1.png" width="350" alt="Software Interface 3"/><br>
+      <em>Detections </em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="assets/detection2.png" width="350" alt="Software Interface 4"/><br>
+      <em>Detections</em>
+    </td>
+    <td align="center">
+      <img src="assets/analytics.png" width="350" alt="Software Interface 5"/><br>
+      <em>Analytics</em>
+    </td>
+    <td align="center">
+      <img src="assets/settings.png" width="350" alt="Software Interface 6"/><br>
+      <em>Custom Settings </em>
+    </td>
+  </tr>
+</table>
+
 ## Features
 * **AI Image & Video Analysis:** Real-time local inference using  SpeciesNet for wildlife classification and weapon detection for identifying armed threats.
 * **Hybrid GPU–CPU Architecture:** Wildlife classification runs on NVIDIA RTX GPUs via PyTorch (CUDA), while weapon detection operates on the CPU using ONNX Runtime for efficient asymmetric processing.
@@ -33,8 +266,7 @@ py -3.10 -m venv venv
 
 *(Note: You must run `.\venv\Scripts\activate` every time you open a new terminal to work on this project).*
 
-### Install `requirements.txt and CUDA  11.8`
-
+### Install `CUDA  11.8  and requirements.txt `
 
 NVIDIA GPU (CUDA 11.8)
 ```powershell
@@ -127,12 +359,13 @@ python app.py
 4. Open your web browser and navigate to:
 * **Dashboard:** `http://127.0.0.1:5000/field_unit`
 
-## DEMOS
-Software Demo:https://youtu.be/htrTLkHLNSU
 
-Hardware Demo:https://youtube.com/shorts/Bd568EzYMTM?feature=share
 
 ---
+## Project Demo
+
+🎥 **Software Demo Video:** [Watch  Demo](https://youtu.be/htrTLkHLNSU)<br>
+🎥 **Hardware Demo Video:** [Watch  Demo](https://youtube.com/shorts/Bd568EzYMTM?feature=share)
 
 ## Troubleshooting
 
